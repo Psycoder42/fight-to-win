@@ -8,17 +8,17 @@
 #content {
   min-height: 700px;
   max-height: 900px;
-  max-width: 600px;
-  min-width: 400px;
   margin: 20px auto;
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: center;
   background-color: red;
 }
 
 #game-area {
   margin: 5px;
+  max-width: 600px;
+  min-width: 400px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
@@ -29,12 +29,17 @@
   overflow: hidden;
 }
 
+#game-area div {
+  display: inline-block;
+}
+
 #enemy-space {
   min-height: 200px;
+  margin-top: 0;
 }
 
 #bonus-space {
-  min-height: 50px;
+  min-height: 100px;
 }
 
 #empty-space {
@@ -43,8 +48,8 @@
 }
 
 #player-space {
-  height: 50px;
-  position: relative;
+  height: 80px;
+  margin-bottom: 0;
 }
 
 #player {
@@ -68,6 +73,8 @@
 
 #sidebar {
   margin: 5px;
+  max-width: 300px;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -84,22 +91,36 @@
 .sprite-field {
   margin: 20px 0;
   z-index: 1;
+  position: relative;
+  border: 1px solid #EEE;
 }
 
-.projectile {
-  display:inline-block;
+.sprite-field div {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 100%;
-  background-color: hotpink;
+}
+
+.game-info {
+  background-color: #EEE;
 }
 
 .triangle {
-  display: inline-block;
 	width: 0;
 	height: 0;
 	border-left: 20px solid transparent;
 	border-right: 20px solid transparent;
 	border-bottom: 40px solid red;
+}
+
+.player-bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 100%;
+  background-color: lightgreen;
+  box-shadow: 0 0 16px lightgreen;
+}
+
+.power-up-test {
+  width: 30px;
+  height: 20px;
+  background-color: lightblue;
 }

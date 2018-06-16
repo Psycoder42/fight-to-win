@@ -1,13 +1,55 @@
-.player-bullet {
-  display:inline-block;
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 100%;
-  background-color: lightgreen;
-  animation: player-bullet 3s 1 linear;
+/******************************************
+* Player related animations
+*******************************************/
+
+.ani-pbullet-normal {
+  animation-name: player-bullet-normal;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 3s;
 }
 
-@keyframes player-bullet {
+@keyframes player-bullet-normal {
   100% { transform: translateY(-1000px); }
 }
+
+.ani-pbullet-expand {
+  animation-name: player-bullet-expand;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 4s;
+}
+
+@keyframes player-bullet-expand {
+  100% { transform: translateY(-1000px) scale(2.5); }
+}
+
+/******************************************
+* Bonus related animations
+*******************************************/
+
+.ani-glide-right {
+  animation-name: glide-from-left;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 3s;
+}
+
+@keyframes glide-from-left {
+  100% { transform: translate(700px); }
+}
+
+.ani-glide-left {
+  animation-name: glide-from-right;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 3s;
+}
+
+@keyframes glide-from-right {
+  100% { transform: translate(-700px); }
+}
+
+/******************************************
+* Enemy related animations
+*******************************************/
