@@ -1,0 +1,13 @@
+.player-bullet {
+  display:inline-block;
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 100%;
+  background-color: lightgreen;
+  animation: player-bullet 3s 1 linear;
+}
+
+@keyframes player-bullet {
+  100% { transform: translateY(-1000px); }
+}

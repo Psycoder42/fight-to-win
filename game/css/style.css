@@ -2,14 +2,15 @@
   margin: 0;
   padding: 0;
   text-align: center;
-  border: 1px solid black;
+  /* border: 1px solid black; */
 }
 
 #content {
   min-height: 700px;
+  max-height: 900px;
   max-width: 600px;
   min-width: 400px;
-  margin: 20px; auto;
+  margin: 20px auto;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -23,7 +24,7 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
-  background-color: lightblue;
+  background-color: black;
   position: relative;
   overflow: hidden;
 }
@@ -50,18 +51,19 @@
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 1;
 }
 
-#glass {
+#glass, #projectile-space {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
   width: 100%;
-  background-color: rgb(0,0,0,.4);
-  z-index: 2;
   cursor: none;
+}
+
+#glass {
+  z-index: 2;
 }
 
 #sidebar {
@@ -81,6 +83,16 @@
 
 .sprite-field {
   margin: 20px 0;
+  z-index: 1;
+}
+
+.projectile {
+  display:inline-block;
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 100%;
+  background-color: hotpink;
 }
 
 .triangle {
