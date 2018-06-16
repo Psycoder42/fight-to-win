@@ -1,20 +1,45 @@
-const sizeData = {}
-const stateData = {
-  canFire: true
+const constants = { // Object to store static values
+  playerWidth: 40,
+  escapeKey: 27,
+  spaceKey: 32
 }
-const constants = {
-  playerWidth: 40
+const stateData = { // Object to store game state
+  $glass: null,
+  $pause: null,
+  $player: null,
+  $enemySpace: null,
+  $bonusSpace: null,
+  $bulletSpace: null,
+  $instructions: null
 }
-const powerups = [
-  {name: 'test', duration: '2s', modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'}
+const sizeData = {} // Object to store information that might change on resize
+const $pCollidables = []; // Array to store things the player can shoot
+const $pProjectiles = []; // Array to store players fired projectiles
+const $eProjectiles = []; // Array to store enemy projectiles
+const powerups = [ // Array to store all the possible power ups
+  {name: 'test', quantity: '5', modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'}
 ]
-const $pCollidables = [];
-const $pProjectiles = [];
-const $eProjectiles = [];
-let $player = null;
-let nextEnemyId = 0;
-let nextPowerUpId = 0;
-let nextBulletId = 0;
+
+// Reset the state data back to the defaults (anything that could have changed)
+const resetState = () => {
+  // boolean states
+  stateData.canFire = true;
+  stateData.gamePaused = true;
+  // counter states
+  stateData.nextEnemyId = 0;
+  stateData.nextPowerUpId = 0;
+  stateData.nextBulletId = 0;
+  stateData.powerShotsRemaining = 0;
+  // string states
+  stateData.powerShotClass = null;
+  // misc
+  stateData.collisionDetectionTimer = null;
+}
+
+// Keep track of things that might change if the screen size changes
+const populateSizeData = () => {
+  sizeData.glassBounds = rect(stateData.$glass);
+}
 
 // See if 2 sprites share the same screen space
 const boundsOverlap = (sprite1, sprite2) => {
@@ -29,7 +54,7 @@ const boundsOverlap = (sprite1, sprite2) => {
 const checkForCollisions = () => {
   // Check if the enemy bullets hit the player
   for (let $eBullet of $eProjectiles) {
-    if (boundsOverlap($eBullet, $player)) {
+    if (boundsOverlap($eBullet, stateData.$player)) {
       // Player was hit by an enemy bullet
       playerDied();
       return;
@@ -45,9 +70,9 @@ const checkForCollisions = () => {
         // A player bullet hit something
         // We can't use the cleanCollidable function because we are iterating over the array
         $pProjectiles[bi].remove(); // get rid of the bullet
-        bulletImpact(target); // do additional actions based on what was hit
         cToRemove = ci;
         bToRemove.push(bi);
+        bulletImpact(target); // do additional actions based on what was hit
         // this bullet is used so break out of inner loop
         break;
       }
@@ -71,7 +96,17 @@ const cleanCollidable = ($obj, $array) => {
 const bulletImpact = ($target) => {
   // Remove the object from the DOM
   $target.remove();
-  console.log('Player hit', $target);
+  // Decide what to do based on what was hit
+  if ($target.attr('data-id').startsWith('e')) {
+    // An enemy was hit
+    console.log('Player hit an enemy');
+  } else {
+    // The only other thing to hit is a powerup
+    if ($target.attr('data-pu-type') == 'weapon') {
+      stateData.powerShotClass = $target.attr('data-pu-class');
+      stateData.powerShotsRemaining = $target.attr('data-pu-quantity');
+    }
+  }
 }
 
 // Handle a player getting hit by a bullet
@@ -90,11 +125,6 @@ const rect = (jQueryObj) => {
   bounds.yMid = bounds.top+bounds.halfHeight;
   // Return the updated rect
   return bounds;
-}
-
-// Keep track of things that might change if the screen size changes
-const populateSizeData = () => {
-  sizeData.glassBounds = rect($('#glass'));
 }
 
 // Figure out where the projectile should spawn
@@ -126,10 +156,11 @@ const spawnPowerUp = (index=0) => {
   let spawnInfo = getPowerUpSpawnInfo();
   let powerUp = $('<div>').addClass('power-up-'+powerUpInfo.name)
     // Add an id so that it is easier to identify
-    .attr('data-id', 'pu-'+nextPowerUpId++)
+    .attr('data-id', 'pu-'+stateData.nextPowerUpId++)
     // Add powerup info to div for later user
     .attr('data-pu-type', powerUpInfo.modifierType)
     .attr('data-pu-class', powerUpInfo.modifierClass)
+    .attr('data-pu-quantity', powerUpInfo.quantity)
     // Center it at the spawn point
     .css('top', spawnInfo.y+'px')
     .css('left', spawnInfo.x+'px')
@@ -165,7 +196,7 @@ const firePlayerWeapon = (spawnPoint) => {
   // Spawn a new player projectile
   let projectile = $('<div>').addClass('player-bullet')
     // Add an id so that it is easier to identify
-    .attr('data-id', 'b-'+nextBulletId++)
+    .attr('data-id', 'b-'+stateData.nextBulletId++)
     // Center it at the spawn point
     .css('top', Math.round(spawnPoint.y-5)+'px')
     .css('left', Math.round(spawnPoint.x-5)+'px')
@@ -176,7 +207,12 @@ const firePlayerWeapon = (spawnPoint) => {
     // Attach it to the DOM
     $('#projectile-space').append(projectile);
     // Start the animation
-    projectile.addClass("ani-pbullet-normal");
+    let bulletAni = "ani-pbullet-normal";
+    if (stateData.powerShotsRemaining > 0) {
+      bulletAni = stateData.powerShotClass;
+      stateData.powerShotsRemaining--;
+    }
+    projectile.addClass(bulletAni);
     // Make sure the projectile is tracked for collision
     $pProjectiles.push(projectile);
 }
@@ -188,7 +224,7 @@ const fireWeapon = () => {
     // Temporarily disable firing
     stateData.canFire = false;
     // Fire the weapon
-    firePlayerWeapon(getProjectileSpawnPoint($player, true));
+    firePlayerWeapon(getProjectileSpawnPoint(stateData.$player, true));
     // Set a timeout to re-enable firing after .5 seconds
     setTimeout(()=>{ stateData.canFire=true; }, 500);
   }
@@ -206,21 +242,107 @@ const movePlayer = (event) => {
   let rightEdge = sizeData.glassBounds.width-constants.playerWidth;
   xPos = Math.min(xPos, rightEdge-10);
   // Reposition the player's ship
-  $player.css('left', Math.round(xPos)+'px');
+  stateData.$player.css('left', Math.round(xPos)+'px');
+}
+
+// This only needs to happen once
+const stateInit = () => {
+  // Initialize the state data that will never change after initial load
+  stateData.$glass = $('#glass');
+  stateData.$pause = $('#pause');
+  stateData.$player = $('#player');
+  stateData.$enemySpace = $('#enemy-space');
+  stateData.$bonusSpace = $('#bonus-space');
+  stateData.$bulletSpace = $('#projectile-space');
+  stateData.$instructions = $('#instructions');
+}
+
+// Start the game
+const startNewGame = () => {
+  // Reset the state data
+  resetState();
+  // Unpause the game
+  toggleGamePaused();
+}
+
+// Set the animation state for all of the sprites
+const setAnimationState = (paused) => {
+  // All the places where sprites might live
+  let spriteLocations = [stateData.$enemySpace, stateData.$bonusSpace, stateData.$bulletSpace];
+  // Check all locations
+  for (let i=0; i<spriteLocations.length; i++) {
+    // Get the list of sprites in this location
+    let $children = spriteLocations[i].children();
+    for (let idx=0; idx<$children.length; idx++) {
+      // Pause or unpause animation based on parameter
+      if (paused) {
+        $children.eq(idx).addClass('paused');
+      } else {
+        $children.eq(idx).removeClass('paused');
+      }
+    }
+  }
+}
+
+// Pause or unpause the game
+const toggleGamePaused = () => {
+  if (stateData.gamePaused) {
+    // Game is paused, resume it
+    stateData.$pause.addClass('hidden');
+    // Have the glass layer listen for mouse moves and clicks
+    stateData.$glass.on('mousemove', movePlayer);
+    // Start the collision detection timer
+    stateData.collisionDetectionTimer = setInterval(checkForCollisions, 100);
+    // Resume all of the sprite animations
+    setAnimationState(false);
+    // Update the paused state
+    stateData.gamePaused = false;
+  } else {
+    // Game is running, pause it
+    stateData.$pause.removeClass('hidden');
+    // Stop the collision detection timer
+    clearInterval(stateData.collisionDetectionTimer);
+    // Stop the glass layer from listening for mouse moves
+    stateData.$glass.off('mousemove', movePlayer);
+    // Pause all of the sprite animations
+    setAnimationState(true);
+    // Update the paused state
+    stateData.gamePaused = true;
+  }
+}
+
+// Listen for escape key events to trigger pause function
+const keyListener = (event) => {
+  if (event.keyCode === constants.spaceKey) {
+    if (!stateData.gamePaused) {
+      // Pressed space while the game was running
+      fireWeapon();
+    }
+  } else if (event.keyCode === constants.escapeKey) {
+    // Close the instructions if they are open
+    stateData.$instructions.css('display', 'none');
+    // toggle the paused state
+    toggleGamePaused();
+  }
+  return false;
 }
 
 // To run after page loads
 const runOnReady = () => {
-    $player = $('#player');
-    // Make sure we know how big things are
-    populateSizeData();
-    // If the window is resized, update our sizes
-    $(window).on('resize', populateSizeData);
-    // Have the glass layer listen for mouse moves and clicks
-    $('#glass').on('mousemove', movePlayer);
-    $('#glass').on('click',fireWeapon);
-    setTimeout(spawnPowerUp, 5000);
-    setInterval(checkForCollisions, 100);
+  // Perform the one-time state init
+  stateInit();
+  // Make sure we know how big things are
+  populateSizeData();
+  // Add the global button listeners
+
+  // Handle window resizes
+  $(window).on('resize', populateSizeData);
+  // Handle key presses
+  $(document).on('keyup', keyListener);
+
+  // For testing purposes
+  startNewGame();
+  setTimeout(spawnPowerUp, 5000);
 }
 
 // Run when the page is done loading

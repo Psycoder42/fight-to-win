@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <title>Fight to Win!</title>
   </head>
-  <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animations.css">
   <script
     src="https://code.jquery.com/jquery-3.3.1.min.js"
     integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
@@ -16,14 +16,19 @@
   <body>
     <div id="content">
       <div id="game-area">
-        <div id="projectile-space" class="sprite-field"></div>
         <div id="enemy-space" class="sprite-field"></div>
         <div id="bonus-space" class="sprite-field"></div>
         <div id="empty-space"></div>
         <div id="player-space" class="sprite-field">
           <div id='player' class="triangle"></div>
         </div>
+        <div id="projectile-space" class="sprite-field"></div>
         <div id="glass"></div>
+        <div id="pause" class="popup hidden">
+          <h1>PAUSED</h1>
+          <h2>(Press Escape to Resume)</h2>
+        </div>
+        <div id="instructions" class="popup hidden"></div>
       </div>
       <div id="sidebar">
         <div id="sidebar-stats" class="game-info">sdf</div>
