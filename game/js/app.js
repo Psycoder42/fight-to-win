@@ -20,8 +20,10 @@ const $pProjectiles = []; // Array to store players fired projectiles
 const $eProjectiles = []; // Array to store enemy projectiles
 const $miscSprites = []; // Array to store other pausable sprites
 const $cutsceneActors = []; // Array to store actors in a cutscene
-const powerups = [ // Array to store all the possible power ups
-  {name: 'test', quantity: '5', modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'}
+const powerUps = [ // Array to store all the possible power ups
+  {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'shield', modifierType: 'ship'},
+  {name: 'invulnerable', modifierType: 'ship'}
 ]
 
 // Reset the state data back to the defaults (anything that could have changed)
@@ -30,6 +32,8 @@ const resetState = () => {
   stateData.canFire = true;
   stateData.cutscene = false;
   stateData.gamePaused = false;
+  stateData.playerHasShield = false;
+  stateData.playerInvulnerable = false;
   // counter states
   stateData.nextEnemyId = 0;
   stateData.nextPowerUpId = 0;
@@ -64,13 +68,27 @@ const boundsOverlap = (sprite1, sprite2) => {
 
 // Function to see if anything collided
 const checkForCollisions = () => {
-  // Check if the enemy bullets hit the player
-  for (let $eBullet of $eProjectiles) {
-    if (boundsOverlap($eBullet, stateData.$player)) {
-      // Player was hit by an enemy bullet
-      playerDied();
-      return;
+  // Check if the enemy bullets hit the player unless the player is invulnerable
+  if (!stateData.playerInvulnerable) {
+    let deflectedByShield = null;
+    for (let $eBullet of $eProjectiles) {
+      if (boundsOverlap($eBullet, stateData.$player)) {
+        if (stateData.playerHasShield) {
+          // Shield protected the player
+          $eBullet.detach();
+          deflectedByShield = $eBullet
+          stateData.$player.removeClass('shield');
+          stateData.playerHasShield = false;
+          continue;
+        } else {
+          // Player was hit by an enemy bullet
+          playerDied();
+          return;
+        }
+      }
     }
+    // Clean the deflected bullet out of the collisions array
+    if (deflectedByShield != null) cleanObjectFormArrayAndDOM(deflectedByShield, $eProjectiles);
   }
   // Check of any of the player bullets hit anything
   let bToRemove = [];
@@ -81,7 +99,7 @@ const checkForCollisions = () => {
       if (boundsOverlap($pProjectiles[bi], target)) {
         // A player bullet hit something
         // We can't use the cleanObjectFormArrayAndDOM function because we are iterating over the array
-        $pProjectiles[bi].remove(); // get rid of the bullet
+        $pProjectiles[bi].detach(); // get rid of the bullet
         cToRemove = ci;
         bToRemove.push(bi);
         bulletImpact(target); // do additional actions based on what was hit
@@ -106,25 +124,45 @@ const cleanObjectFormArrayAndDOM = ($obj, $array=null) => {
   }
 }
 
+// Apply a power up
+const applyPowerUp = (index) => {
+  let info = powerUps[parseInt(index)];
+  if (info.modifierType == 'weapon') {
+    stateData.powerShotClass = info.modifierClass;
+    stateData.powerShotsRemaining = info.quantity;
+  } else if (info.modifierType == 'ship') {
+    switch (info.name) {
+      case 'invulnerable':
+        makePlayerInvulnerable();
+        break;
+      case 'shield':
+        stateData.playerHasShield = true;
+        stateData.$player.addClass('shield');
+        break;
+    }
+  }
+}
+
 // Handle a player bullet hitting something
 const bulletImpact = ($target) => {
-  // Remove the object from the DOM
-  $target.remove();
+  // Stop it from displaying on the DOM
+  $target.detach();
   // Decide what to do based on what was hit
   if ($target.attr('data-id').startsWith('e')) {
     // An enemy was hit
     console.log('Player hit an enemy');
   } else {
     // The only other thing to hit is a powerup
-    if ($target.attr('data-pu-type') == 'weapon') {
-      stateData.powerShotClass = $target.attr('data-pu-class');
-      stateData.powerShotsRemaining = $target.attr('data-pu-quantity');
-    }
+    applyPowerUp($target.attr('data-pu-idx'));
   }
+  // Fully remove the object from the DOM
+  $target.remove();
 }
 
 // Display an explosion on a sprite
-const makeExplode = ($sprite, animationNumber=1) => {
+// After the explosion animation is complete, if a callback was provided it
+// will be invoked and the sprite that exploded will be passed as an argument
+const makeExplode = ($sprite, callback=null, animationNumber=1) => {
   // Spawn the explosion on the center of the sprite
   let spriteRect = rect($sprite);
   let $explosion = $('<div>').addClass('explosion')
@@ -137,6 +175,11 @@ const makeExplode = ($sprite, animationNumber=1) => {
           // Assume it is going into the miscSprites array to guarantee it will
           // be cleaned in either case ($cutsceneActors is auto-cleaned)
           cleanObjectFormArrayAndDOM($(event.currentTarget), $miscSprites);
+          // Invoke the post-explosion code
+          if (callback != null) {
+            console.log('calling explode callback');
+            callback($sprite);
+          }
       });
   // Make sure to track this animation to allow for pausing
   let trackingArray = $miscSprites;
@@ -156,14 +199,16 @@ const playerDied = (target) => {
   // This is a cutscene so freese the gameplay
   beginCutscene();
   $cutsceneActors.push(stateData.$player);
-  // Have the player explode
-  makeExplode(stateData.$player);
   // Take away one of their extra lives
   stateData.livesRemaining--;
-  // If there are more lives bring in the next ship and continue
-  if (true) {
-    console.log('here');
+  // Default callback is to spawn the next life
+  let callback = spawnNextLife;
+  if (stateData.livesRemaining < 0) {
+    // The player is out of lives
+    callback = gameOver;
   }
+  // Have the player explode
+  makeExplode(stateData.$player, callback);
 }
 
 // Helper method to calculat the mid points when getting a rect
@@ -201,16 +246,16 @@ const getPowerUpSpawnInfo = () => {
 }
 
 // Spawn a particular powerup
-const spawnPowerUp = (index=0) => {
-  let powerUpInfo = powerups[index];
+const spawnPowerUp = (index=null) => {
+  // Either use the index passed in or a random index
+  let pIdx = (index!=null ? index : Math.floor(Math.random()*powerUps.length));
+  let powerUpInfo = powerUps[pIdx];
   let spawnInfo = getPowerUpSpawnInfo();
   let powerUp = $('<div>').addClass('power-up-'+powerUpInfo.name)
       // Add an id so that it is easier to identify
       .attr('data-id', 'pu-'+stateData.nextPowerUpId++)
       // Add powerup info to div for later user
-      .attr('data-pu-type', powerUpInfo.modifierType)
-      .attr('data-pu-class', powerUpInfo.modifierClass)
-      .attr('data-pu-quantity', powerUpInfo.quantity)
+      .attr('data-pu-idx', pIdx)
       // Center it at the spawn point
       .css('top', spawnInfo.y+'px')
       .css('left', spawnInfo.x+'px')
@@ -309,18 +354,56 @@ const movePlayer = (event) => {
 }
 
 // Player ship enters the screen
-const playerEnter = () => {
+const playerEnter = (callback=null) => {
   // Move the player ship to the starting point
   let glassBounds = rect(stateData.$glass);
   let midGlass = glassBounds.xMid - sizeData.glassBounds.left;
-  stateData.$player.css('top','80px').show()
+  stateData.$player.css('top','80px')
       .css('left', Math.round(midGlass-(constants.playerWidth/2))+'px')
       // When the animation complete, end the cutscene
       .on('oanimationend animationend webkitAnimationEnd', (event) => {
+          // Remove the one-time listener
+          $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd');
+          // End the cutscene
           endCutscene();
+          // Perform the custom action if present
+          if (callback != null) {
+            console.log('Calling Enter callback');
+            callback();
+          }
       });
   // Start the animation
   stateData.$player.addClass('ani-player-enter');
+}
+
+// Make the player invulnerable
+const makePlayerInvulnerable = () => {
+  // Only if the player is not already invulnerable
+  if (!stateData.playerInvulnerable) {
+    stateData.$player.on('oanimationend animationend webkitAnimationEnd', (event) => {
+        // Remove the one-time listener and animation class
+        $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd');
+        stateData.$player.removeClass('ani-invulnerable');
+        // Update the state
+        stateData.playerInvulnerable = false;
+    });
+    // Update the state
+    stateData.playerInvulnerable = true;
+    // Start the invulnerable animation
+    stateData.$player.addClass('ani-invulnerable');
+  }
+}
+
+// Bring in the next ship after a player death
+const spawnNextLife = () => {
+  // Bring the next ship in and make them temporarily invulnerable
+  playerEnter();
+  //playerEnter(makePlayerInvulnerable);
+}
+
+// The game is over
+const gameOver = () => {
+
 }
 
 // This only needs to happen once

@@ -121,14 +121,6 @@
   display: inline-block;
 }
 
-.triangle {
-	width: 0;
-	height: 0;
-	border-left: 20px solid transparent;
-	border-right: 20px solid transparent;
-	border-bottom: 40px solid lightblue;
-}
-
 .player-bullet {
   width: 10px;
   height: 10px;
@@ -137,10 +129,22 @@
   box-shadow: 0 0 16px lightgreen;
 }
 
-.power-up-test {
+.power-up-expand-shot {
   width: 30px;
   height: 20px;
   background-color: lightblue;
+}
+
+.power-up-shield {
+  width: 30px;
+  height: 20px;
+  background-color: pink;
+}
+
+.power-up-invulnerable {
+  width: 30px;
+  height: 20px;
+  background-color: gold;
 }
 
 .explosion {

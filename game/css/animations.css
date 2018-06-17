@@ -15,6 +15,23 @@
   100% { transform: translateY(-70px); }
 }
 
+.ani-invulnerable {
+  animation-name: invulnerable;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 2s;
+}
+
+@keyframes invulnerable {
+  0% { opacity: 1; }
+  16% { opacity: .2; }
+  33% { opacity: 1; }
+  50% { opacity: .2; }
+  66% { opacity: 1; }
+  83% { opacity: .2; }
+  100% { opacity: 1; }
+}
+
 .ani-pbullet-normal {
   animation-name: player-bullet-normal;
   animation-timing-function: linear;
@@ -90,7 +107,7 @@
   animation-name: explode-1;
   animation-timing-function: linear;
   animation-iteration-count: 3;
-  animation-duration: 1s;
+  animation-duration: .5s;
   animation-fill-mode: forwards;
 }
 
