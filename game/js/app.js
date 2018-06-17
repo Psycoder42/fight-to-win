@@ -57,6 +57,14 @@ const flipCoin = () => {
   return (Math.trunc(Math.random()*2)%2 == 0);
 }
 
+// Move a sprite to its current location with respects to a parent
+const affixPositionToParent = ($sprite, $parent) => {
+  let sBounds = $sprite.clientRect();
+  let pBounds = $parent.clientRect();
+  // Affix the sprite to the parent (adjust for the parent offset)
+  $sprite.css('top', (sBounds.top-pBounds.top)+'px').css('left', (sBounds.left-pBounds.left)+'px');
+}
+
 // See if 2 sprites share the same screen space
 const boundsOverlap = (sprite1, sprite2) => {
   // We use clientRect() instead of rect() because we don't care about midpoints
@@ -171,16 +179,7 @@ const makeExplode = ($sprite, callback=null, animationNumber=1) => {
       // Add an id so that it is easier to identify
       .attr('data-id', 'a-'+stateData.nextAnimationId++)
       // Have it remove itself from the DOM when the animation ends
-      .on('oanimationend animationend webkitAnimationEnd', (event) => {
-          // Assume it is going into the miscSprites array to guarantee it will
-          // be cleaned in either case ($cutsceneActors is auto-cleaned)
-          cleanObjectFormArrayAndDOM($(event.currentTarget), $miscSprites);
-          // Invoke the post-explosion code
-          if (callback != null) {
-            console.log('calling explode callback');
-            callback($sprite);
-          }
-      });
+      .on('oanimationend animationend webkitAnimationEnd', null, {callback: callback}, explosionCallback);
   // Make sure to track this animation to allow for pausing
   let trackingArray = $miscSprites;
   if (stateData.cutscene) {
@@ -260,9 +259,7 @@ const spawnPowerUp = (index=null) => {
       .css('top', spawnInfo.y+'px')
       .css('left', spawnInfo.x+'px')
       // Have it remove itself from the DOM when the animation ends
-      .on('oanimationend animationend webkitAnimationEnd', (event) => {
-          cleanObjectFormArrayAndDOM($(event.currentTarget), $pCollidables);
-      });
+      .on('oanimationend animationend webkitAnimationEnd', null, {array: $pCollidables}, cleanupIndependentSprite);
   // There is a 20% chance to spawn a speed-adjusted bonus
   if (Math.random() <= 0.2) {
     // 50/50 chance to speed up versus slow down
@@ -307,9 +304,7 @@ const firePlayerWeapon = (spawnPoint) => {
       .css('top', Math.round(spawnPoint.y-5)+'px')
       .css('left', Math.round(spawnPoint.x-5)+'px')
       // Have it remove itself from the DOM when the animation ends
-      .on('oanimationend animationend webkitAnimationEnd', (event) => {
-          cleanObjectFormArrayAndDOM($(event.currentTarget), $pProjectiles);
-      });
+      .on('oanimationend animationend webkitAnimationEnd', null, {array: $pProjectiles}, cleanupIndependentSprite);
   // Attach it to the DOM
   $('#projectile-space').append(projectile);
   // Make sure this honors the pause state
@@ -361,17 +356,7 @@ const playerEnter = (callback=null) => {
   stateData.$player.css('top','80px')
       .css('left', Math.round(midGlass-(constants.playerWidth/2))+'px')
       // When the animation complete, end the cutscene
-      .on('oanimationend animationend webkitAnimationEnd', (event) => {
-          // Remove the one-time listener
-          $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd');
-          // End the cutscene
-          endCutscene();
-          // Perform the custom action if present
-          if (callback != null) {
-            console.log('Calling Enter callback');
-            callback();
-          }
-      });
+      .on('oanimationend animationend webkitAnimationEnd', null, {callback: callback}, playerEnterCallback);
   // Start the animation
   stateData.$player.addClass('ani-player-enter');
 }
@@ -380,13 +365,7 @@ const playerEnter = (callback=null) => {
 const makePlayerInvulnerable = () => {
   // Only if the player is not already invulnerable
   if (!stateData.playerInvulnerable) {
-    stateData.$player.on('oanimationend animationend webkitAnimationEnd', (event) => {
-        // Remove the one-time listener and animation class
-        $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd');
-        stateData.$player.removeClass('ani-invulnerable');
-        // Update the state
-        stateData.playerInvulnerable = false;
-    });
+    stateData.$player.on('oanimationend animationend webkitAnimationEnd', makePlayerInvulnerableCallback);
     // Update the state
     stateData.playerInvulnerable = true;
     // Start the invulnerable animation
@@ -397,8 +376,7 @@ const makePlayerInvulnerable = () => {
 // Bring in the next ship after a player death
 const spawnNextLife = () => {
   // Bring the next ship in and make them temporarily invulnerable
-  playerEnter();
-  //playerEnter(makePlayerInvulnerable);
+  playerEnter(makePlayerInvulnerable);
 }
 
 // The game is over

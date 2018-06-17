@@ -1,3 +1,8 @@
+/* A class to put on all sprites that have more than one animation or reuse animations */
+.reusable-sprite {
+  animation: none;
+}
+
 /******************************************
 * Player related animations
 *******************************************/
