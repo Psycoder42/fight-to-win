@@ -2,11 +2,25 @@
 * Player related animations
 *******************************************/
 
+.ani-player-enter {
+  animation-name: player-enter;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 2s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes player-enter {
+  70% { transform: translateY(-70px); }
+  100% { transform: translateY(-70px); }
+}
+
 .ani-pbullet-normal {
   animation-name: player-bullet-normal;
   animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-duration: 3s;
+  animation-fill-mode: forwards;
 }
 
 @keyframes player-bullet-normal {
@@ -20,6 +34,7 @@
   animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-duration: 4s;
+  animation-fill-mode: forwards;
 }
 
 @keyframes player-bullet-expand {
@@ -35,6 +50,7 @@
   animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-duration: 3s;
+  animation-fill-mode: forwards;
 }
 
 @keyframes glide-from-left {
@@ -46,16 +62,43 @@
   animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-duration: 3s;
+  animation-fill-mode: forwards;
 }
 
 @keyframes glide-from-right {
   100% { transform: translate(-700px); }
 }
 
+.slow-bonus {
+  animation-duration: 4s;
+}
+
+.fast-bonus {
+  animation-duration: 2s;
+}
+
 /******************************************
 * Enemy related animations
 *******************************************/
 
+
+/******************************************
+* Generic animations
+*******************************************/
+
+.ani-explosion-1 {
+  animation-name: explode-1;
+  animation-timing-function: linear;
+  animation-iteration-count: 3;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes explode-1 {
+  0% { transform: scale(.01); }
+  50% { transform: scale(1); }
+  100% { transform: scale(.01); }
+}
 
 /******************************************
 * Animmation modifiers
