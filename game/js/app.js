@@ -20,6 +20,11 @@ const enemyOps = { // The random grab bag that makes up the enemys and their beh
   style: ['ani-enemy-smooth','ani-enemy-smooth-fast'],
   endpoints: ['a','b','c','d','e','f','g','h']
 }
+const powerUps = [ // Array to store all the possible power ups
+  {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'shield', modifierType: 'ship'},
+  {name: 'invulnerable', modifierType: 'ship'}
+]
 const sizeData = {} // Object to store information that might change on resize
 const timeoutMap = {} // Object to keep track of all the active timeouts
 const $pCollidables = []; // Array to store things the player can shoot
@@ -27,15 +32,52 @@ const $pProjectiles = []; // Array to store players fired projectiles
 const $eProjectiles = []; // Array to store enemy projectiles
 const $miscSprites = []; // Array to store other pausable sprites
 const $cutsceneActors = []; // Array to store actors in a cutscene
-const powerUps = [ // Array to store all the possible power ups
-  {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
-  {name: 'shield', modifierType: 'ship'},
-  {name: 'invulnerable', modifierType: 'ship'}
-]
+
+// Keep track of things that might change if the screen size changes
+const populateSizeData = () => {
+  sizeData.glassBounds = rect(stateData.$glass);
+}
+
+// Remove all the elements in an array
+const clearArray = (array) => {
+  if (array!=null && array instanceof Array) {
+    while (array.length > 0) array.pop();
+  }
+}
+
+// Remove all the keys in an object
+const clearObject = (obj) => {
+  if (obj != null) {
+    let keys = Object.keys(obj);
+    for (let key of keys) delete obj[key];
+  }
+}
+
+// Reset the arrays and objects appropriately
+const resetObjectStates = () => {
+  // Stop all of the timeouts
+  let keys = Object.keys(timeoutMap);
+  for (let key of keys) clearTimeout(obj[key]);
+  clearObject(timeoutMap);
+  // Remove all sprites from the game
+  for (let $array of [$pCollidables,$pProjectiles,$eProjectiles,$miscSprites]) {
+    for (let $sprite of $array) $sprite.remove();
+    clearArray($array);
+  }
+  // Clean out without doing anything with the elements
+  clearArray($cutsceneActors);
+}
+
+// Reset the UI elements
+const resetUI = () => {
+  // Hide all of the popup screens
+  hideAllPopups();
+}
 
 // Reset the state data back to the defaults (anything that could have changed)
 const resetState = () => {
   // boolean states
+  stateData.inGame = false;
   stateData.canFire = true;
   stateData.cutscene = false;
   stateData.gamePaused = false;
@@ -53,11 +95,9 @@ const resetState = () => {
   stateData.powerShotClass = null;
   // misc
   stateData.collisionDetectionTimer = null;
-}
-
-// Keep track of things that might change if the screen size changes
-const populateSizeData = () => {
-  sizeData.glassBounds = rect(stateData.$glass);
+  // Clean up objects and UI
+  resetObjectStates();
+  resetUI();
 }
 
 // Helper function to generate a random boolean
@@ -245,6 +285,8 @@ const playerDied = (target) => {
   }
   // Have the player explode
   makeExplode(stateData.$player, callback);
+  // Detach the player div
+  stateData.$player.detach();
 }
 
 // Helper method to calculat the mid points when getting a rect
@@ -474,6 +516,8 @@ const playerEnter = (callback=null) => {
       .css('left', Math.round(midGlass-(constants.playerWidth/2))+'px')
       // When the animation complete, end the cutscene
       .on('oanimationend animationend webkitAnimationEnd', null, {callback: callback}, playerEnterCallback);
+  // Add the player into the player-space div (it was detached)
+  stateData.$playerSpace.append(stateData.$player);
   // Start the animation
   stateData.$player.addClass('ani-player-enter');
 }
@@ -500,7 +544,17 @@ const spawnNextLife = () => {
 const gameOver = () => {
   // Make sure everything is stopped
   toggleGamePaused(true);
-  console.log("Game Over");
+  // Indicate we have started a game
+  stateData.inGame = false;
+  // Re-enable the main buttons
+  setMainButtonsDisabled(false);
+}
+
+// Alter the enablement state of the main window buttons
+const setMainButtonsDisabled = (isDisabled) => {
+  $('#sidebar-controls > .button').each((idx, button)=>{
+    $(button).prop('disabled',isDisabled);
+  });
 }
 
 // This only needs to happen once
@@ -508,7 +562,7 @@ const stateInit = () => {
   // Initialize the state data that will never change after initial load
   stateData.$glass = $('#glass');
   stateData.$pause = $('#pause');
-  stateData.$player = $('#player');
+  stateData.$player = $('#player').detach(); // detach when it's not active
   stateData.$enemySpace = $('#enemy-space');
   stateData.$bonusSpace = $('#bonus-space');
   stateData.$playerSpace = $('#player-space');
@@ -520,6 +574,10 @@ const stateInit = () => {
 const startNewGame = () => {
   // Reset the state data
   resetState();
+  // Indicate we have started a game
+  stateData.inGame = true;
+  // disable the main buttons while in an active game
+  setMainButtonsDisabled(true);
   // Indicate that a cutscene is running
   beginCutscene();
   $cutsceneActors.push(stateData.$player);
@@ -545,7 +603,7 @@ const endCutscene = () => {
     // Resume the normal gameplay
     toggleGamePaused(true);
     // Clean out the $cutsceneActors array
-    while ($cutsceneActors.length > 0) $cutsceneActors.pop();
+    clearArray($cutsceneActors);
     // Update the state
     stateData.cutscene = false;
   }
@@ -586,6 +644,16 @@ const playerPressedPauseKey = () => {
     for (let idx=0; idx<$cutsceneActors.length; idx++) {
       $cutsceneActors[idx].toggleClass('paused');
     }
+    // Toggle the popup screens
+    if (!isPopupVisible(stateData.$pause)) {
+      // Show the pause screen and enable the buttons
+      showPopup(stateData.$pause);
+      setMainButtonsDisabled(false);
+    } else {
+      // Clear the screens and disable the buttons
+      hideAllPopups();
+      setMainButtonsDisabled(true);
+    }
   } else {
     // The player is pausing the game
     toggleGamePaused(false);
@@ -596,20 +664,24 @@ const playerPressedPauseKey = () => {
 const toggleGamePaused = (isCutsceneFreeze) => {
   if (stateData.gamePaused) {
     // Game is paused, resume it (harmless if the class is already there)
-    stateData.$pause.addClass('hidden');
+    hideAllPopups();
     // Have the glass layer listen for mouse moves and clicks
     stateData.$glass.on('mousemove', movePlayer);
     // Start the collision detection timer
     stateData.collisionDetectionTimer = setInterval(checkForCollisions, 100);
     // Update the paused state
     stateData.gamePaused = false;
+    // disable the main buttons
+    setMainButtonsDisabled(true);
     // Resume all of the sprite animations
     updateAnimationState();
   } else {
     // Only put up the pause screen if this isn't a cutscene
     if (!isCutsceneFreeze) {
       // Game is running, pause it
-      stateData.$pause.removeClass('hidden');
+      showPopup(stateData.$pause);
+      // Re-enable the main buttons
+      setMainButtonsDisabled(false);
     }
     // Stop the collision detection timer
     clearInterval(stateData.collisionDetectionTimer);
@@ -624,18 +696,56 @@ const toggleGamePaused = (isCutsceneFreeze) => {
 
 // Listen for escape key events to trigger pause function
 const keyListener = (event) => {
-  if (event.keyCode === constants.spaceKey) {
-    if (!stateData.gamePaused) {
-      // Pressed space while the game was running outside of a cutscene
-      fireWeapon();
+  // Only handle key events if we are in a game
+  if (stateData.inGame) {
+    if (event.keyCode === constants.spaceKey) {
+      if (!stateData.gamePaused) {
+        // Pressed space while the game was running outside of a cutscene
+        fireWeapon();
+      }
+    } else if (event.keyCode === constants.escapeKey) {
+      // toggle the paused state
+      playerPressedPauseKey();
     }
-  } else if (event.keyCode === constants.escapeKey) {
-    // Close the instructions if they are open
-    stateData.$instructions.css('display', 'none');
-    // toggle the paused state
-    playerPressedPauseKey();
+    return false;
   }
-  return false;
+}
+
+// Test if a popup screen is currently visible
+const isPopupVisible = ($screen) => {
+  return !$screen.hasClass('hidden');
+}
+
+// Show onw of the popup screens
+const showPopup = ($screen) => {
+  $screen.removeClass('hidden');
+}
+
+// Show onw of the popup screens
+const hidePopup = ($screen) => {
+  $screen.addClass('hidden');
+}
+
+// Hide all of the popup screens
+const hideAllPopups = () => {
+  $('.popup').each((idx, popup)=>{
+    $(popup).addClass('hidden');
+  });
+}
+
+// Open the settings page
+const openSettings = () => {
+
+}
+
+// Open the game instructions page
+const toggleInstructions = () => {
+  let $instructions = $('#instructions');
+  if (isPopupVisible($instructions)) {
+    hidePopup($instructions);
+  } else {
+    showPopup($instructions);
+  }
 }
 
 // To run after page loads
@@ -645,15 +755,13 @@ const runOnReady = () => {
   // Make sure we know how big things are
   populateSizeData();
   // Add the global button listeners
-
+  $('#btn-restart').on('click', startNewGame);
+  $('#btn-settings').on('click', openSettings);
+  $('#btn-instruct').on('click', toggleInstructions);
   // Handle window resizes
   $(window).on('resize', populateSizeData);
   // Handle key presses
   $(document).on('keyup', keyListener);
-
-  // For testing purposes
-  startNewGame();
-  setInterval(spawnEnemy, 20000);
 }
 
 // Run when the page is done loading
