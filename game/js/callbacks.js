@@ -24,9 +24,9 @@ const playerEnterCallback = (event) => {
   // Remove this one-time listener
   $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd', playerEnterCallback);
   // Affix the player to its new location
-  affixPositionToParent(stateData.$player, stateData.$playerSpace);
+  affixPositionToParent(divData.$player, divData.$playerSpace);
   // Remove the animation class
-  stateData.$player.removeClass('ani-player-enter');
+  divData.$player.removeClass('ani-player-enter');
   // End the cutscene
   endCutscene();
   // Perform the custom action if present
@@ -41,9 +41,11 @@ const makePlayerInvulnerableCallback = (event) => {
   // Remove the one-time listener
   $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd', makePlayerInvulnerableCallback);
   // Remove the animation class
-  stateData.$player.removeClass('ani-invulnerable');
+  divData.$player.removeClass('ani-invulnerable');
   // Update the state
   stateData.playerInvulnerable = false;
+  // Remove the effect from the list
+  trackPowerUp('invulnerable', false);
 }
 
 // Cleanup an independent sprite after it has completed it's animation
@@ -63,7 +65,7 @@ const moveEnemyCallback = (event) => {
   // Remove the current listener
   $enemy.off('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
   // Affix the player to its new location
-  affixPositionToParent($enemy, stateData.$enemySpace);
+  affixPositionToParent($enemy, divData.$enemySpace);
   // Clear off the movement style
   $enemy.removeClass(enemyOps.style.join(' '));
   // Move the enemy again
