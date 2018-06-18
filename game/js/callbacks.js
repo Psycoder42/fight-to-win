@@ -3,6 +3,7 @@
 const explosionCallback = (event) => {
   let callback = event.data.callback;
   let $explosion = $(event.currentTarget);
+  let $parent = $explosion.parent();
   // Remove the one-time listener
   $explosion.off('oanimationend animationend webkitAnimationEnd', explosionCallback);
   // Assume the explosion is going into the miscSprites array to guarantee it
@@ -12,7 +13,7 @@ const explosionCallback = (event) => {
   if (callback != null) {
     // Pass the parent (which is the sprite that exploded) to the callback
     // We need to use a timeout in order to break out of the current "thread"
-    setTimeout(callback, 50, $explosion.parent());
+    setTimeout(callback, 50, $parent);
   }
 }
 
@@ -65,6 +66,6 @@ const moveEnemyCallback = (event) => {
   affixPositionToParent($enemy, stateData.$enemySpace);
   // Clear off the movement style
   $enemy.removeClass(enemyOps.style.join(' '));
-  // Move the enemy again (sometime between immediately and .5 seconds later)
-  setTimeout(moveEnemy, (Math.floor(Math.random()*500)+50), $enemy);
+  // Move the enemy again
+  setTimeout(moveEnemy, 50, $enemy);
 }

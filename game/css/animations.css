@@ -114,12 +114,6 @@
   animation-fill-mode: forwards;
 }
 
-.ani-enemy-smooth-slow {
-  animation-timing-function: linear;
-  animation-duration: 4s;
-  animation-fill-mode: forwards;
-}
-
 @keyframes a {
   100% { top: 30px; left: 5% }
 }
@@ -150,6 +144,18 @@
 
 @keyframes h {
   100% { top: 130px; left: 88% }
+}
+
+.ani-ebullet-normal {
+  animation-name: enemy-bullet-normal;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 3s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes enemy-bullet-normal {
+  100% { transform: translateY(1000px); }
 }
 
 /******************************************

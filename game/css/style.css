@@ -72,15 +72,6 @@
   z-index: 2;
 }
 
-#enemy {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  background-color: lightblue;
-  top: 30px;
-  left: 5%;
-}
-
 .popup {
   display: flex;
   flex-direction: column;
@@ -128,6 +119,21 @@
 .sprite-field div {
   position: absolute;
   display: inline-block;
+}
+
+.enemy-basic {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background-color: grey;
+}
+
+.enemy-bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 100%;
+  background-color: deeppink;
+  box-shadow: 0 0 16px deeppink;
 }
 
 .player-bullet {

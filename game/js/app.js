@@ -14,11 +14,14 @@ const stateData = { // Object to store game state
   $playerSpace: null,
   $instructions: null
 }
-const enemyOps = { // The random grab bag that makes up enemy movement
-  style: ['ani-enemy-smooth','ani-enemy-smooth-fast','ani-enemy-smooth-slow'],
+const enemyOps = { // The random grab bag that makes up the enemys and their behavior
+  type: ['basic'],
+  bullets: ['ani-ebullet-normal'],
+  style: ['ani-enemy-smooth','ani-enemy-smooth-fast'],
   endpoints: ['a','b','c','d','e','f','g','h']
 }
 const sizeData = {} // Object to store information that might change on resize
+const timeoutMap = {} // Object to keep track of all the active timeouts
 const $pCollidables = []; // Array to store things the player can shoot
 const $pProjectiles = []; // Array to store players fired projectiles
 const $eProjectiles = []; // Array to store enemy projectiles
@@ -45,6 +48,7 @@ const resetState = () => {
   stateData.nextAnimationId = 0;
   stateData.powerShotsRemaining = 0;
   stateData.livesRemaining = 3;
+  stateData.enemiesSpawned = 0;
   // string states
   stateData.powerShotClass = null;
   // misc
@@ -82,25 +86,26 @@ const boundsOverlap = (sprite1, sprite2) => {
 const checkForCollisions = () => {
   // Check if the enemy bullets hit the player unless the player is invulnerable
   if (!stateData.playerInvulnerable) {
-    let deflectedByShield = null;
+    let playerWasHit = false;
+    let bToRemove = [];
     for (let $eBullet of $eProjectiles) {
       if (boundsOverlap($eBullet, stateData.$player)) {
+        $eBullet.detach();
+        bToRemove.push($eBullet);
         if (stateData.playerHasShield) {
           // Shield protected the player
-          $eBullet.detach();
-          deflectedByShield = $eBullet
           stateData.$player.removeClass('shield');
           stateData.playerHasShield = false;
           continue;
         } else {
           // Player was hit by an enemy bullet
           playerDied();
-          return;
+          break;
         }
       }
     }
-    // Clean the deflected bullet out of the collisions array
-    if (deflectedByShield != null) cleanObjectFormArrayAndDOM(deflectedByShield, $eProjectiles);
+    // Clean any bullets that made contact
+    for (let $bullet of bToRemove) cleanObjectFormArrayAndDOM($bullet, $eProjectiles);
   }
   // Check of any of the player bullets hit anything
   let bToRemove = [];
@@ -126,14 +131,19 @@ const checkForCollisions = () => {
   for (let idx of bToRemove) $pProjectiles.splice(idx, 1);
 }
 
-// Make sure an object is cleaned off the DOM and the collision array
-const cleanObjectFormArrayAndDOM = ($obj, $array=null) => {
-  $obj.remove();
+// Make sure an object is cleaned  out of the collision array
+const cleanObjectFormArray = ($obj, $array=null) => {
   if ($array != null) {
     let objId = $obj.attr('data-id');
     let idx = $array.findIndex(($o)=>{ return $o.attr('data-id') == objId; });
     if (idx > -1) $array.splice(idx, 1);
   }
+}
+
+// Make sure an object is cleaned off the DOM and the collision array
+const cleanObjectFormArrayAndDOM = ($obj, $array=null) => {
+  $obj.remove();
+  cleanObjectFormArray($obj, $array);
 }
 
 // Apply a power up
@@ -157,18 +167,41 @@ const applyPowerUp = (index) => {
 
 // Handle a player bullet hitting something
 const bulletImpact = ($target) => {
-  // Stop it from displaying on the DOM
-  $target.detach();
   // Decide what to do based on what was hit
   if ($target.attr('data-id').startsWith('e')) {
     // An enemy was hit
-    console.log('Player hit an enemy');
+    enemyWasDestroyed($target);
   } else {
     // The only other thing to hit is a powerup
+    $target.detach();
     applyPowerUp($target.attr('data-pu-idx'));
+    $target.remove();
   }
-  // Fully remove the object from the DOM
-  $target.remove();
+}
+
+// An enemy ship was distroyed
+const enemyWasDestroyed = ($enemy) => {
+  let enemyId = $enemy.attr('data-id');
+  // Stop the enemy from moving
+  $enemy.addClass('paused');
+  $enemy.off('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
+  // Stop the enemy from firing
+  clearTimeout(timeoutMap[enemyId]);
+  delete timeoutMap[enemyId];
+  // Stop the enemy from being hit again
+  cleanObjectFormArray($enemy, $pCollidables);
+  // Blow up the enemy
+  makeExplode($enemy, benefitFromDeadEnemy);
+}
+
+// Final interaction with defeated enemy
+const benefitFromDeadEnemy = ($enemy) => {
+  // Stop the enemy from appearing on the DOM
+  $enemy.detach();
+  // Increase the player score and spawn bonuses and stuff
+
+  // Final cleanup of the enemy
+  $enemy.remove();
 }
 
 // Display an explosion on a sprite
@@ -227,6 +260,40 @@ const rect = (jQueryObj) => {
   return bounds;
 }
 
+// Spawn a random enemy
+const spawnEnemy = () => {
+  if (!stateData.gamePaused) {
+    // Only spawn if the game is not paused
+    let eClass = 'enemy-' + enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
+    let eStyle = enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)];
+    let eDest = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
+    let eAmmo = enemyOps.bullets[Math.floor(Math.random()*enemyOps.bullets.length)];
+    let xPos = (Math.floor(Math.random()*50)+20);
+    let enemyId = 'e-'+stateData.nextPowerUpId++
+    // Generate the new enemy
+    let $enemy = $('<div>').addClass(eClass).addClass('reusable-sprite')
+        // Add an id so that it is easier to identify
+        .attr('data-id', enemyId)
+        // Add the types of bullets this enemy uses
+        .attr('data-bullet-type', eAmmo)
+        // Set its spawn point
+        .css('top', '-50px')
+        .css('left', xPos+'%')
+        // Attach it to the DOM
+    stateData.$enemySpace.append($enemy);
+    // Make sure this honors the pause state
+    if (stateData.gamePaused) $enemy.addClass('paused');
+    // Make sure the enemy is tracked for collision
+    $pCollidables.push($enemy);
+    // Queue up the enemy firing to start between 1-2 seconds after spawning
+    timeoutMap[enemyId] = setTimeout(fireEnemyWeapon, (Math.floor(Math.random()*1000)+1000), $enemy);
+    // Start the enemy moving
+    moveEnemy($enemy);
+    // Record that an enemy was spawned
+    stateData.enemiesSpawned++;
+  }
+}
+
 // Figure out where the projectile should spawn
 const getPowerUpSpawnInfo = () => {
   // Initialize some variables for function scope
@@ -254,7 +321,7 @@ const spawnPowerUp = (index=null) => {
   let pIdx = (index!=null ? index : Math.floor(Math.random()*powerUps.length));
   let powerUpInfo = powerUps[pIdx];
   let spawnInfo = getPowerUpSpawnInfo();
-  let powerUp = $('<div>').addClass('power-up-'+powerUpInfo.name)
+  let $powerUp = $('<div>').addClass('power-up-'+powerUpInfo.name)
       // Add an id so that it is easier to identify
       .attr('data-id', 'pu-'+stateData.nextPowerUpId++)
       // Add powerup info to div for later user
@@ -268,19 +335,19 @@ const spawnPowerUp = (index=null) => {
   if (Math.random() <= 0.2) {
     // 50/50 chance to speed up versus slow down
     if (flipCoin()) {
-      powerUp.addClass('fast-bonus');
+      $powerUp.addClass('fast-bonus');
     } else {
-      powerUp.addClass('slow-bonus');
+      $powerUp.addClass('slow-bonus');
     }
   }
   // Attach it to the DOM
-  $('#bonus-space').append(powerUp);
+  $('#bonus-space').append($powerUp);
   // Make sure this honors the pause state
-  if (stateData.gamePaused) powerUp.addClass('paused');
+  if (stateData.gamePaused) $powerUp.addClass('paused');
   // Start the animation
-  powerUp.addClass(spawnInfo.ani);
+  $powerUp.addClass(spawnInfo.ani);
   // Make sure the powerup is tracked for collision
-  $pCollidables.push(powerUp);
+  $pCollidables.push($powerUp);
 }
 
 // Figure out where the projectile should spawn
@@ -298,10 +365,10 @@ const getProjectileSpawnPoint = (originator, isPlayer) => {
   return { x: xPos, y: yPos };
 }
 
-// The user weapon was fired
+// The player weapon was fired
 const firePlayerWeapon = (spawnPoint) => {
   // Spawn a new player projectile
-  let projectile = $('<div>').addClass('player-bullet')
+  let $projectile = $('<div>').addClass('player-bullet')
       // Add an id so that it is easier to identify
       .attr('data-id', 'b-'+stateData.nextBulletId++)
       // Center it at the spawn point
@@ -310,18 +377,47 @@ const firePlayerWeapon = (spawnPoint) => {
       // Have it remove itself from the DOM when the animation ends
       .on('oanimationend animationend webkitAnimationEnd', null, {array: $pProjectiles}, cleanupIndependentSprite);
   // Attach it to the DOM
-  $('#projectile-space').append(projectile);
+  $('#projectile-space').append($projectile);
   // Make sure this honors the pause state
-  if (stateData.gamePaused) projectile.addClass('paused');
+  if (stateData.gamePaused) $projectile.addClass('paused');
   // Start the animation
   let bulletAni = "ani-pbullet-normal";
   if (stateData.powerShotsRemaining > 0) {
     bulletAni = stateData.powerShotClass;
     stateData.powerShotsRemaining--;
   }
-  projectile.addClass(bulletAni);
+  $projectile.addClass(bulletAni);
   // Make sure the projectile is tracked for collision
-  $pProjectiles.push(projectile);
+  $pProjectiles.push($projectile);
+}
+
+// The enemy weapon was fired
+const fireEnemyWeapon = ($enemy) => {
+  let enemyId = $enemy.attr('data-id');
+  if (!stateData.gamePaused) {
+    // Only fire if the game is not paused
+    let ammoClass = $enemy.attr('data-bullet-type');
+    let spawnPoint = getProjectileSpawnPoint($enemy, false);
+    // Spawn a new enemy projectile
+    let $projectile = $('<div>').addClass('enemy-bullet')
+        // Add an id so that it is easier to identify
+        .attr('data-id', 'b-'+stateData.nextBulletId++)
+        // Center it at the spawn point
+        .css('top', Math.round(spawnPoint.y-5)+'px')
+        .css('left', Math.round(spawnPoint.x-5)+'px')
+        // Have it remove itself from the DOM when the animation ends
+        .on('oanimationend animationend webkitAnimationEnd', null, {array: $eProjectiles}, cleanupIndependentSprite);
+    // Attach it to the DOM
+    $('#projectile-space').append($projectile);
+    // Make sure this honors the pause state
+
+    // Start the animation
+    $projectile.addClass(ammoClass);
+    // Make sure the projectile is tracked for collision
+    $eProjectiles.push($projectile);
+  }
+  // Queue up the enemy firing to shoot again between .5-2.5 seconds later
+  timeoutMap[enemyId] = setTimeout(fireEnemyWeapon, (Math.floor(Math.random()*2000)+500), $enemy);
 }
 
 // The user attempted to fire their weapon.
@@ -402,7 +498,9 @@ const spawnNextLife = () => {
 
 // The game is over
 const gameOver = () => {
-
+  // Make sure everything is stopped
+  toggleGamePaused(true);
+  console.log("Game Over");
 }
 
 // This only needs to happen once
@@ -555,7 +653,7 @@ const runOnReady = () => {
 
   // For testing purposes
   startNewGame();
-  setTimeout(moveEnemy, 5000, $('#enemy'));
+  setInterval(spawnEnemy, 20000);
 }
 
 // Run when the page is done loading
