@@ -26,7 +26,8 @@ const enemyOps = { // The random grab bag that makes up the enemys and their beh
 const powerUps = [ // Array to store all the possible power ups
   {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
   {name: 'shields', modifierType: 'ship'},
-  {name: 'invulnerable', modifierType: 'ship'}
+  {name: 'invulnerable', modifierType: 'ship'},
+  {name: 'points', modifierType: 'state'}
 ]
 const stateData = {} // Object to store game state data
 const sizeData = {} // Object to store information that might change on resize
@@ -269,6 +270,15 @@ const applyPowerUp = (index) => {
         divData.$player.addClass('shield');
         break;
     }
+  } else if (info.modifierType == 'ship') {
+    switch (info.name) {
+      case 'points':
+        // Award a random points - multiple of 50 between 100-1000
+        updatePlayerScore(((Math.floor(Math.random()*19) + 1) * 50));
+        break;
+    }
+    // We want to shortcut out of this function since we don't want to have state changes show up as effects
+    return;
   }
   trackPowerUp(info.name, true);
 }
@@ -300,6 +310,9 @@ const enemyWasDestroyed = ($enemy) => {
   cleanObjectFormArray($enemy, $pCollidables);
   // Blow up the enemy
   makeExplode($enemy, benefitFromDeadEnemy);
+  // Track the kill
+  updateKillCount();
+  updatePlayerScore(250);
 }
 
 // Final interaction with defeated enemy
