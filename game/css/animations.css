@@ -1,6 +1,7 @@
 /* A class to put on all sprites that have more than one animation or reuse animations */
 .reusable-sprite {
   animation: none;
+  animation-iteration-count: 1;
 }
 
 /******************************************
@@ -10,7 +11,6 @@
 .ani-player-enter {
   animation-name: player-enter;
   animation-timing-function: linear;
-  animation-iteration-count: 1;
   animation-duration: 2s;
   animation-fill-mode: forwards;
 }
@@ -23,7 +23,6 @@
 .ani-invulnerable {
   animation-name: invulnerable;
   animation-timing-function: linear;
-  animation-iteration-count: 1;
   animation-duration: 2s;
 }
 
@@ -103,6 +102,55 @@
 * Enemy related animations
 *******************************************/
 
+.ani-enemy-smooth {
+  animation-timing-function: linear;
+  animation-duration: 3s;
+  animation-fill-mode: forwards;
+}
+
+.ani-enemy-smooth-fast {
+  animation-timing-function: linear;
+  animation-duration: 2s;
+  animation-fill-mode: forwards;
+}
+
+.ani-enemy-smooth-slow {
+  animation-timing-function: linear;
+  animation-duration: 4s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes a {
+  100% { top: 30px; left: 5% }
+}
+
+@keyframes b {
+  100% { top: 30px; left: 47% }
+}
+
+@keyframes c {
+  100% { top: 30px; left: 88% }
+}
+
+@keyframes d {
+  100% { top: 80px; left: 32% }
+}
+
+@keyframes e {
+  100% { top: 80px; left: 60% }
+}
+
+@keyframes f {
+  100% { top: 130px; left: 5% }
+}
+
+@keyframes g {
+  100% { top: 130px; left: 47% }
+}
+
+@keyframes h {
+  100% { top: 130px; left: 88% }
+}
 
 /******************************************
 * Generic animations

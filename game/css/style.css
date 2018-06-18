@@ -72,6 +72,15 @@
   z-index: 2;
 }
 
+#enemy {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background-color: lightblue;
+  top: 30px;
+  left: 5%;
+}
+
 .popup {
   display: flex;
   flex-direction: column;

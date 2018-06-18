@@ -55,3 +55,16 @@ const cleanupIndependentSprite = (event) => {
   // Clean up the sprite
   cleanObjectFormArrayAndDOM($sprite, array);
 }
+
+// Clean up the sprite's state and then move it again
+const moveEnemyCallback = (event) => {
+  let $enemy = $(event.currentTarget);
+  // Remove the current listener
+  $enemy.off('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
+  // Affix the player to its new location
+  affixPositionToParent($enemy, stateData.$enemySpace);
+  // Clear off the movement style
+  $enemy.removeClass(enemyOps.style.join(' '));
+  // Move the enemy again (sometime between immediately and .5 seconds later)
+  setTimeout(moveEnemy, (Math.floor(Math.random()*500)+50), $enemy);
+}

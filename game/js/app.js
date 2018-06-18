@@ -14,6 +14,10 @@ const stateData = { // Object to store game state
   $playerSpace: null,
   $instructions: null
 }
+const enemyOps = { // The random grab bag that makes up enemy movement
+  style: ['ani-enemy-smooth','ani-enemy-smooth-fast','ani-enemy-smooth-slow'],
+  endpoints: ['a','b','c','d','e','f','g','h']
+}
 const sizeData = {} // Object to store information that might change on resize
 const $pCollidables = []; // Array to store things the player can shoot
 const $pProjectiles = []; // Array to store players fired projectiles
@@ -335,6 +339,23 @@ const fireWeapon = () => {
   return false;
 }
 
+// Move an enemy to its next location
+const moveEnemy = ($enemy) => {
+  // Get the current location of the enemy
+  let currentLoc = $enemy.css('animation-name');
+  // Pick its next location
+  let nextLoc = currentLoc;
+  while (nextLoc == currentLoc) {
+    nextLoc = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
+  }
+  // Add the movement style
+  $enemy.addClass(enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)])
+      // When the animation complete clean state and repeat
+      .on('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
+  // Start the animation
+  $enemy.css('animation-name', nextLoc);
+}
+
 // Make the player ship move with the mouse's horizontal position
 const movePlayer = (event) => {
   // Get the position of the mouse relative to the glass div
@@ -534,7 +555,7 @@ const runOnReady = () => {
 
   // For testing purposes
   startNewGame();
-  setTimeout(playerDied, 3000);
+  setTimeout(moveEnemy, 5000, $('#enemy'));
 }
 
 // Run when the page is done loading
