@@ -92,8 +92,7 @@ h2 {
 
 #sidebar {
   margin: 5px;
-  max-width: 300px;
-  min-width: 200px;
+  width: 250px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -121,14 +120,14 @@ h2 {
 }
 
 #extra-lives {
-  min-height: 40px;
+  min-height: 50px;
+  max-height: 180px;
   margin: 5px 20px 10px 20px;
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  align-items: flex-start;
-  background-color: grey;
-  align-self: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 #sidebar-controls {
@@ -150,6 +149,10 @@ h2 {
 
 .spacer {
   flex-grow: 1;
+}
+
+.extra-life {
+  margin: 3px;
 }
 
 .button {

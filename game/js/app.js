@@ -29,6 +29,7 @@ const waveData = [
   { enemyCount: 6, spawnDelay: 2000, tagline: "Those guys don't look frendly" },
   { enemyCount: 10, spawnDelay: 2000, tagline: "Here come some more" }
 ];
+const imgData = {}; // Object holding all of the source image locations
 const divData = {}; // Object to store div references
 const sizeData = {}; // Object to store information that might change on resize
 const timeoutMap = {}; // Object to keep track of all the active timeouts
@@ -38,6 +39,13 @@ const $pProjectiles = []; // Array to store players fired projectiles
 const $eProjectiles = []; // Array to store enemy projectiles
 const $miscSprites = []; // Array to store other pausable sprites
 const $cutsceneActors = []; // Array to store actors in a cutscene
+
+// Load all of the images asyncronously
+const loadImages = () => {
+  imgData.$playerImg = $('<img>').attr('src', 'images/ship_placeholder.png');
+}
+// We want to run this immediately and not wait for the page to load
+loadImages();
 
 // This only needs to happen once
 const divInit = () => {
@@ -53,6 +61,7 @@ const divInit = () => {
   divData.$playerKills = $('#player-kills');
   divData.$playerScore = $('#player-score');
   divData.$waveNumber = $('#wave-number');
+  divData.$extraLives = $('#extra-lives');
   divData.$effectInsertLoc = $('#sidebar-stats > .spacer');
   divData.$stageMessages = $('#stage-messages');
   // A special jQuery object for custom events
@@ -76,7 +85,7 @@ const resetState = () => {
   stateData.playerScore = 0;
   stateData.nextBulletId = 0;
   stateData.powerShotsRemaining = 0;
-  stateData.livesRemaining = 3;
+  stateData.livesRemaining = 2; // 2 additional lives: 3 total
   stateData.enemiesSpawned = 0; // For tracking wave status
   stateData.enemiesKilled = 0; // For tracking wave status
   // string states
@@ -146,12 +155,29 @@ const resetObjectStates = () => {
 // Update the Active Effects list
 const updateEffectsList = () => {
   // Remove any existing effects in the list
-  $('#sidebar-stats > h4').each((idx, elem)=> {
-    $(elem).remove();
-  });
+  $('#sidebar-stats > h4').each((idx, elem)=> { $(elem).remove(); });
   // Add the items in the array to the list
   for (let elem of activeBonuses) {
     $('<h4>').text(elem).insertBefore(divData.$effectInsertLoc);
+  }
+}
+
+// Update extra lives list
+const updateExtraLives = (reset=false) => {
+  let $extraLives = divData.$extraLives.children();
+  if (reset) {
+    // Make sure they are all gone
+    $extraLives.each((idx, elem)=>{ $(elem).remove(); });
+    // Add the appropriate number back
+    for (let i=0; i<stateData.livesRemaining; i++) {
+      let $life = $('<img>').addClass('extra-life').attr('src',imgData.$playerImg.attr('src'));
+      divData.$extraLives.append($life);
+    }
+  } else {
+    // Update the game state
+    stateData.livesRemaining--;
+    // Remove an extra life
+    $extraLives.last().remove();
   }
 }
 
@@ -193,6 +219,8 @@ const resetUI = () => {
   updatePlayerScore(0);
   // Reset the effects list
   updateEffectsList();
+  // Reset the extra lives
+  updateExtraLives(true);
 }
 
 // Helper function to generate a random boolean
@@ -422,11 +450,9 @@ const playerDied = (target) => {
   // This is a cutscene so freese the gameplay
   beginCutscene();
   $cutsceneActors.push(divData.$player);
-  // Take away one of their extra lives
-  stateData.livesRemaining--;
   // Default callback is to spawn the next life
   let callback = spawnNextLife;
-  if (stateData.livesRemaining < 0) {
+  if (stateData.livesRemaining == 0) {
     // Manually update pausableCutscene in this case
     stateData.pausableCutscene = false;
     // The player is out of lives
@@ -692,6 +718,8 @@ const makePlayerInvulnerable = () => {
 
 // Bring in the next ship after a player death
 const spawnNextLife = () => {
+  // Take away one of their extra lives
+  updateExtraLives();
   // Bring the next ship in and make them temporarily invulnerable
   playerEnter(makePlayerInvulnerable);
 }
