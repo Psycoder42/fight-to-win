@@ -9,6 +9,8 @@ const explosionCallback = (event) => {
   // Assume the explosion is going into the miscSprites array to guarantee it
   // will be cleaned in either case ($cutsceneActors is auto-cleaned)
   cleanObjectFormArrayAndDOM($explosion, $miscSprites);
+  // Detach the sprite from the DOM
+  $parent.detach();
   // Invoke the post-explosion code
   if (callback != null) {
     // Pass the parent (which is the sprite that exploded) to the callback
@@ -70,4 +72,17 @@ const moveEnemyCallback = (event) => {
   $enemy.removeClass(enemyOps.style.join(' '));
   // Move the enemy again
   setTimeout(moveEnemy, 50, $enemy);
+}
+
+// Callback after the display text was shown
+// The event.data.callback is either null or a function to call
+const displayTextCallback = (event) => {
+  let callback = event.data.callback;
+  // Hide the generic text popup
+  hidePopup(divData.$stageMessages);
+  // Perform the custom action if present
+  if (callback != null) {
+    // We need to use a timeout in order to break out of the current "thread"
+    setTimeout(callback, 50);
+  }
 }

@@ -1,37 +1,37 @@
-const constants = { // Object to store static values
+// Object to store static values
+const constants = {
   playerWidth: 40,
   playerHeight: 40,
   escapeKey: 27,
   spaceKey: 32
-}
-const divData = { // Object to store div references
-  $glass: null,
-  $pause: null,
-  $player: null,
-  $enemySpace: null,
-  $bonusSpace: null,
-  $bulletSpace: null,
-  $playerSpace: null,
-  $instructions: null,
-  $playerKills: null,
-  $playerScore: null,
-  $effectInsertLoc: null
-}
-const enemyOps = { // The random grab bag that makes up the enemys and their behavior
+};
+// The random grab bag that makes up the enemys and their behavior
+const enemyOps = {
   type: ['basic'],
   bullets: ['ani-ebullet-normal'],
   style: ['ani-enemy-smooth','ani-enemy-smooth-fast'],
   endpoints: ['a','b','c','d','e','f','g','h']
-}
-const powerUps = [ // Array to store all the possible power ups
+};
+// Array to store all the possible power ups
+const powerUps = [
   {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
   {name: 'shields', modifierType: 'ship'},
   {name: 'invulnerable', modifierType: 'ship'},
   {name: 'points', modifierType: 'state'}
-]
-const stateData = {} // Object to store game state data
-const sizeData = {} // Object to store information that might change on resize
-const timeoutMap = {} // Object to keep track of all the active timeouts
+];
+// Object to store game state data
+const stateData = {
+  // This is defined here because it shouldn't be reset on a new game
+  highScore: 0
+};
+// Information about the attack waves
+const waveData = [
+  { enemyCount: 6, spawnDelay: 2000, tagline: "Those guys don't look frendly" },
+  { enemyCount: 10, spawnDelay: 2000, tagline: "Here come some more" }
+];
+const divData = {}; // Object to store div references
+const sizeData = {}; // Object to store information that might change on resize
+const timeoutMap = {}; // Object to keep track of all the active timeouts
 const activeBonuses = []; // Array to bonuses currently applied to the player
 const $pCollidables = []; // Array to store things the player can shoot
 const $pProjectiles = []; // Array to store players fired projectiles
@@ -39,15 +39,84 @@ const $eProjectiles = []; // Array to store enemy projectiles
 const $miscSprites = []; // Array to store other pausable sprites
 const $cutsceneActors = []; // Array to store actors in a cutscene
 
+// This only needs to happen once
+const divInit = () => {
+  // Initialize the state data that will never change after initial load
+  divData.$glass = $('#glass');
+  divData.$pause = $('#pause');
+  divData.$player = $('#player').detach(); // detach when it's not active
+  divData.$enemySpace = $('#enemy-space');
+  divData.$bonusSpace = $('#bonus-space');
+  divData.$playerSpace = $('#player-space');
+  divData.$bulletSpace = $('#projectile-space');
+  divData.$instructions = $('#instructions');
+  divData.$playerKills = $('#player-kills');
+  divData.$playerScore = $('#player-score');
+  divData.$waveNumber = $('#wave-number');
+  divData.$effectInsertLoc = $('#sidebar-stats > .spacer');
+  divData.$stageMessages = $('#stage-messages');
+  // A special jQuery object for custom events
+  divData.$customEvents = $('<div>');
+}
+
+// Reset the state data back to the defaults (anything that could have changed)
+const resetState = () => {
+  // boolean states
+  stateData.inGame = false;
+  stateData.inWave = false;
+  stateData.canFire = true;
+  stateData.cutscene = false;
+  stateData.gamePaused = false;
+  stateData.pausableCutscene = true;
+  stateData.playerHasShield = false;
+  stateData.playerInvulnerable = false;
+  // counter states
+  stateData.currentWave = 0;
+  stateData.playerKills = 0;
+  stateData.playerScore = 0;
+  stateData.nextBulletId = 0;
+  stateData.powerShotsRemaining = 0;
+  stateData.livesRemaining = 3;
+  stateData.enemiesSpawned = 0; // For tracking wave status
+  stateData.enemiesKilled = 0; // For tracking wave status
+  // string states
+  stateData.powerShotName = null;
+  stateData.powerShotClass = null;
+  // misc
+  stateData.currentWaveInfo = null;
+  stateData.collisionDetectionTimer = null;
+  // Clean up objects and UI
+  resetObjectStates();
+  resetUI();
+}
+
 // Keep track of things that might change if the screen size changes
 const populateSizeData = () => {
   sizeData.glassBounds = rect(divData.$glass);
+}
+
+// Helper function to make sure a display string is not null
+const getDisplayString = (str) => {
+  return (str == null ? '' : str);
+}
+
+// Helper method to get a unique (enough) id
+const getUniqueId = (prefix='id_') => {
+  let d = new Date();
+  return prefix + d.getTime();
 }
 
 // Remove all the elements in an array
 const clearArray = (array) => {
   if (array!=null && array instanceof Array) {
     while (array.length > 0) array.pop();
+  }
+}
+
+// Remove all the elements in an array and remove them from the dom
+const clearDisplayableArray = (array) => {
+  if (array!=null && array instanceof Array) {
+    while (array.length > 0) array.pop().remove();
   }
 }
 
@@ -63,12 +132,11 @@ const clearObject = (obj) => {
 const resetObjectStates = () => {
   // Stop all of the timeouts
   let keys = Object.keys(timeoutMap);
-  for (let key of keys) clearTimeout(obj[key]);
+  for (let key of keys) clearTimeout(timeoutMap[key]);
   clearObject(timeoutMap);
   // Remove all sprites from the game
   for (let $array of [$pCollidables,$pProjectiles,$eProjectiles,$miscSprites]) {
-    for (let $sprite of $array) $sprite.remove();
-    clearArray($array);
+    clearDisplayableArray($array);
   }
   // Clean out without doing anything with the elements
   clearArray($cutsceneActors);
@@ -103,44 +171,28 @@ const updatePlayerScore = (amount) => {
   divData.$playerScore.text(stateData.playerScore);
 }
 
+// Update the player's score
+const updateWaveNumber = (reset=false) => {
+  if (reset) {
+    stateData.currentWave = 0;
+    divData.$waveNumber.text('------');
+  } else {
+    stateData.currentWave++;
+    divData.$waveNumber.text('Wave '+stateData.currentWave);
+  }
+}
+
 // Reset the UI elements
 const resetUI = () => {
   // Hide all of the popup screens
   hideAllPopups();
+  // Reset the wave
+  updateWaveNumber(true);
   // Reset the kills and score
   updateKillCount(0);
   updatePlayerScore(0);
   // Reset the effects list
   updateEffectsList();
-}
-
-// Reset the state data back to the defaults (anything that could have changed)
-const resetState = () => {
-  // boolean states
-  stateData.inGame = false;
-  stateData.canFire = true;
-  stateData.cutscene = false;
-  stateData.gamePaused = false;
-  stateData.playerHasShield = false;
-  stateData.playerInvulnerable = false;
-  // counter states
-  stateData.playerKills = 0;
-  stateData.playerScore = 0;
-  stateData.nextEnemyId = 0;
-  stateData.nextPowerUpId = 0;
-  stateData.nextBulletId = 0;
-  stateData.nextAnimationId = 0;
-  stateData.powerShotsRemaining = 0;
-  stateData.livesRemaining = 3;
-  stateData.enemiesSpawned = 0;
-  // string states
-  stateData.powerShotName = null;
-  stateData.powerShotClass = null;
-  // misc
-  stateData.collisionDetectionTimer = null;
-  // Clean up objects and UI
-  resetObjectStates();
-  resetUI();
 }
 
 // Helper function to generate a random boolean
@@ -170,11 +222,11 @@ const checkForCollisions = () => {
   // Check if the enemy bullets hit the player unless the player is invulnerable
   if (!stateData.playerInvulnerable) {
     let playerWasHit = false;
-    let bToRemove = [];
+    let $bToRemove = [];
     for (let $eBullet of $eProjectiles) {
       if (boundsOverlap($eBullet, divData.$player)) {
         $eBullet.detach();
-        bToRemove.push($eBullet);
+        $bToRemove.push($eBullet);
         if (stateData.playerHasShield) {
           // Shield protected the player
           divData.$player.removeClass('shield');
@@ -184,36 +236,41 @@ const checkForCollisions = () => {
           continue;
         } else {
           // Player was hit by an enemy bullet
-          playerDied();
+          playerWasHit = true;
           break;
         }
       }
     }
     // Clean any bullets that made contact
-    for (let $bullet of bToRemove) cleanObjectFormArrayAndDOM($bullet, $eProjectiles);
+    for (let $bullet of $bToRemove) cleanObjectFormArrayAndDOM($bullet, $eProjectiles);
+    // Register the player being hit
+    if (playerWasHit) playerDied();
   }
   // Check of any of the player bullets hit anything
-  let bToRemove = [];
+  let $bToRemove = [];
   for (let bi=0; bi<$pProjectiles.length; bi++) {
-    let cToRemove = null;
+    let $bullet = $pProjectiles[bi];
+    let $cToRemove = null;
     for (let ci=0; ci<$pCollidables.length; ci++) {
-      let target = $pCollidables[ci];
-      if (boundsOverlap($pProjectiles[bi], target)) {
+      let $target = $pCollidables[ci];
+      if (boundsOverlap($bullet, $target)) {
         // A player bullet hit something
-        // We can't use the cleanObjectFormArrayAndDOM function because we are iterating over the array
-        $pProjectiles[bi].detach(); // get rid of the bullet
-        cToRemove = ci;
-        bToRemove.push(bi);
-        bulletImpact(target); // do additional actions based on what was hit
+        // Stop showing the bullet on the DOM
+        $bullet.detach();
+        // We can't use the cleanObjectFormArray function because we are iterating over the array
+        $cToRemove = $target;
+        $bToRemove.push($bullet);
+        // Do additional actions based on what was hit
+        bulletImpact($target);
         // this bullet is used so break out of inner loop
         break;
       }
     }
-    // If somethingwas hit, remove it from the collision tracking array
-    if (cToRemove != null) $pCollidables.splice(cToRemove, 1);
+    // If something was hit, remove it from the collision tracking array
+    if ($cToRemove != null) cleanObjectFormArray($cToRemove, $pCollidables);
   }
-  // Clean up the bullet collision tracking array (is there a faster way to do this?)
-  for (let idx of bToRemove) $pProjectiles.splice(idx, 1);
+  // Clean up the bullet collision tracking array
+  for (let $bullet of $bToRemove) cleanObjectFormArray($bullet, $pProjectiles);
 }
 
 // Make sure an object is cleaned  out of the collision array
@@ -222,6 +279,16 @@ const cleanObjectFormArray = ($obj, $array=null) => {
     let objId = $obj.attr('data-id');
     let idx = $array.findIndex(($o)=>{ return $o.attr('data-id') == objId; });
     if (idx > -1) $array.splice(idx, 1);
+  }
+  // If a wave is now over and there is nothing left for the player to
+  // interact with, trigger the wave:end event
+  if (stateData.inWave &&
+      stateData.enemiesSpawned==stateData.currentWaveInfo.enemyCount &&
+      stateData.enemiesKilled==stateData.enemiesSpawned &&
+      $pCollidables.length==0 &&
+      $eProjectiles.length==0)
+  {
+    divData.$customEvents.trigger('wave:end');
   }
 }
 
@@ -285,6 +352,8 @@ const applyPowerUp = (index) => {
 
 // Handle a player bullet hitting something
 const bulletImpact = ($target) => {
+  // Add a class to let us identify destroyed objects
+  $target.addClass('destroyed');
   // Decide what to do based on what was hit
   if ($target.attr('data-id').startsWith('e')) {
     // An enemy was hit
@@ -293,7 +362,7 @@ const bulletImpact = ($target) => {
     // The only other thing to hit is a powerup
     $target.detach();
     applyPowerUp($target.attr('data-pu-idx'));
-    $target.remove();
+    cleanObjectFormArrayAndDOM($target, $pCollidables);
   }
 }
 
@@ -306,23 +375,20 @@ const enemyWasDestroyed = ($enemy) => {
   // Stop the enemy from firing
   clearTimeout(timeoutMap[enemyId]);
   delete timeoutMap[enemyId];
-  // Stop the enemy from being hit again
-  cleanObjectFormArray($enemy, $pCollidables);
-  // Blow up the enemy
-  makeExplode($enemy, benefitFromDeadEnemy);
   // Track the kill
   updateKillCount();
   updatePlayerScore(250);
+  // Blow up the enemy
+  makeExplode($enemy, benefitFromDeadEnemy);
 }
 
 // Final interaction with defeated enemy
 const benefitFromDeadEnemy = ($enemy) => {
-  // Stop the enemy from appearing on the DOM
-  $enemy.detach();
   // Increase the player score and spawn bonuses and stuff
 
-  // Final cleanup of the enemy
-  $enemy.remove();
+  // Cleanup the enemy
+  stateData.enemiesKilled++;
+  cleanObjectFormArrayAndDOM($enemy, $pCollidables);
 }
 
 // Display an explosion on a sprite
@@ -335,7 +401,7 @@ const makeExplode = ($sprite, callback=null, animationNumber=1) => {
       .css('top', (spriteRect.halfHeight-25)+'px')
       .css('left', (spriteRect.halfWidth-25)+'px')
       // Add an id so that it is easier to identify
-      .attr('data-id', 'a-'+stateData.nextAnimationId++)
+      .attr('data-id', getUniqueId('a-'))
       // Have it remove itself from the DOM when the animation ends
       .on('oanimationend animationend webkitAnimationEnd', null, {callback: callback}, explosionCallback);
   // Make sure to track this animation to allow for pausing
@@ -361,13 +427,13 @@ const playerDied = (target) => {
   // Default callback is to spawn the next life
   let callback = spawnNextLife;
   if (stateData.livesRemaining < 0) {
+    // Manually update pausableCutscene in this case
+    stateData.pausableCutscene = false;
     // The player is out of lives
-    callback = gameOver;
+    callback = playerOutOfLives;
   }
   // Have the player explode
   makeExplode(divData.$player, callback);
-  // Detach the player div
-  divData.$player.detach();
 }
 
 // Helper method to calculat the mid points when getting a rect
@@ -385,6 +451,11 @@ const rect = (jQueryObj) => {
 
 // Spawn a random enemy
 const spawnEnemy = () => {
+  // Shortcut if we've spawned all the enemies for this wave
+  if (stateData.enemiesSpawned >= stateData.currentWaveInfo.enemyCount) {
+    clearInterval(timeoutMap['enemySpawnInterval']);
+    return;
+  }
   if (!stateData.gamePaused) {
     // Only spawn if the game is not paused
     let eClass = 'enemy-' + enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
@@ -392,7 +463,7 @@ const spawnEnemy = () => {
     let eDest = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
     let eAmmo = enemyOps.bullets[Math.floor(Math.random()*enemyOps.bullets.length)];
     let xPos = (Math.floor(Math.random()*50)+20);
-    let enemyId = 'e-'+stateData.nextPowerUpId++
+    let enemyId = getUniqueId('e-');
     // Generate the new enemy
     let $enemy = $('<div>').addClass(eClass).addClass('reusable-sprite')
         // Add an id so that it is easier to identify
@@ -446,7 +517,7 @@ const spawnPowerUp = (index=null) => {
   let spawnInfo = getPowerUpSpawnInfo();
   let $powerUp = $('<div>').addClass('power-up-'+powerUpInfo.name)
       // Add an id so that it is easier to identify
-      .attr('data-id', 'pu-'+stateData.nextPowerUpId++)
+      .attr('data-id', getUniqueId('pu-'))
       // Add powerup info to div for later user
       .attr('data-pu-idx', pIdx)
       // Center it at the spawn point
@@ -464,7 +535,7 @@ const spawnPowerUp = (index=null) => {
     }
   }
   // Attach it to the DOM
-  $('#bonus-space').append($powerUp);
+  divData.$bonusSpace.append($powerUp);
   // Make sure this honors the pause state
   if (stateData.gamePaused) $powerUp.addClass('paused');
   // Start the animation
@@ -493,14 +564,14 @@ const firePlayerWeapon = (spawnPoint) => {
   // Spawn a new player projectile
   let $projectile = $('<div>').addClass('player-bullet')
       // Add an id so that it is easier to identify
-      .attr('data-id', 'b-'+stateData.nextBulletId++)
+      .attr('data-id', getUniqueId('b-'))
       // Center it at the spawn point
       .css('top', Math.round(spawnPoint.y-5)+'px')
       .css('left', Math.round(spawnPoint.x-5)+'px')
       // Have it remove itself from the DOM when the animation ends
       .on('oanimationend animationend webkitAnimationEnd', null, {array: $pProjectiles}, cleanupIndependentSprite);
   // Attach it to the DOM
-  $('#projectile-space').append($projectile);
+  divData.$bulletSpace.append($projectile);
   // Make sure this honors the pause state
   if (stateData.gamePaused) $projectile.addClass('paused');
   // Start the animation
@@ -528,14 +599,14 @@ const fireEnemyWeapon = ($enemy) => {
     // Spawn a new enemy projectile
     let $projectile = $('<div>').addClass('enemy-bullet')
         // Add an id so that it is easier to identify
-        .attr('data-id', 'b-'+stateData.nextBulletId++)
+        .attr('data-id', getUniqueId('b-'+stateData.nextBulletId++))
         // Center it at the spawn point
         .css('top', Math.round(spawnPoint.y-5)+'px')
         .css('left', Math.round(spawnPoint.x-5)+'px')
         // Have it remove itself from the DOM when the animation ends
         .on('oanimationend animationend webkitAnimationEnd', null, {array: $eProjectiles}, cleanupIndependentSprite);
     // Attach it to the DOM
-    $('#projectile-space').append($projectile);
+    divData.$bulletSpace.append($projectile);
     // Make sure this honors the pause state
 
     // Start the animation
@@ -625,14 +696,71 @@ const spawnNextLife = () => {
   playerEnter(makePlayerInvulnerable);
 }
 
+// Start the enemy attact for this wave
+const startEnemyAttack = () => {
+  // Reset the spawned/killed enemy count
+  stateData.enemiesSpawned = 0;
+  stateData.enemiesKilled = 0;
+  stateData.inWave = true;
+  // Start an interval timer to spawn enemies
+  timeoutMap['enemySpawnInterval'] = setInterval(spawnEnemy, stateData.currentWaveInfo.spawnDelay)
+}
+
+// The wave is over
+const waveOver = () => {
+  // Update the state
+  stateData.inWave = false;
+  // Remove all of the player bullets from the screen
+  clearDisplayableArray($pProjectiles);
+  // Start the next wave or show the win screen
+  if (stateData.currentWave < waveData.length) {
+    startNextWave();
+  } else {
+    // Make sure everything is stopped
+    beginCutscene(false);
+    // All the waves have been completed
+    displayText('CONGRATULATIONS',
+      'You have defeated all of the enemies',
+      'The universe is safe... for now',
+      5000,
+      gameOver
+    );
+  }
+}
+
+// The player dies and has no more lives
+const playerOutOfLives = () => {
+  // All the waves have been completed
+  displayText('Game Over',
+    'You succumbed to the invading horde',
+    'Perhaps someday a warrior will appear who can pick up where you left off',
+    5000,
+    gameOver
+  );
+}
+
+// The screen to display after the game is over
+const displayEndScreen = () => {
+  // Prime the message screen
+  setPopupMessage("Thanks for Playing!", '', "Remember, winners don't do drugs!");
+  // Show the message screen
+  showPopup(divData.$stageMessages);
+}
+
 // The game is over
 const gameOver = () => {
-  // Make sure everything is stopped
-  toggleGamePaused(true);
-  // Indicate we have started a game
+  // Detatch the player
+  divData.$player.detach();
+  // Remove all of the potentially visible sprites
+  clearDisplayableArray($pCollidables);
+  clearDisplayableArray($eProjectiles);
+  clearDisplayableArray($pProjectiles);
+  // Indicate we are no longer in a game
   stateData.inGame = false;
   // Re-enable the main buttons
   setMainButtonsDisabled(false);
+  // Show the end screen
+  displayEndScreen();
 }
 
 // Alter the enablement state of the main window buttons
@@ -642,20 +770,36 @@ const setMainButtonsDisabled = (isDisabled) => {
   });
 }
 
-// This only needs to happen once
-const divInit = () => {
-  // Initialize the state data that will never change after initial load
-  divData.$glass = $('#glass');
-  divData.$pause = $('#pause');
-  divData.$player = $('#player').detach(); // detach when it's not active
-  divData.$enemySpace = $('#enemy-space');
-  divData.$bonusSpace = $('#bonus-space');
-  divData.$playerSpace = $('#player-space');
-  divData.$bulletSpace = $('#projectile-space');
-  divData.$instructions = $('#instructions');
-  divData.$playerKills = $('#player-kills');
-  divData.$playerScore = $('#player-score');
-  divData.$effectInsertLoc = $('#sidebar-stats > .spacer');
+// Set the message for the stage dialog
+const setPopupMessage = (title, subtitle, text) => {
+  divData.$stageMessages.find('.title').text(getDisplayString(title));
+  divData.$stageMessages.find('.subtitle').text(getDisplayString(subtitle));
+  divData.$stageMessages.find('.text').text(getDisplayString(text));
+}
+
+// Display text for a few seconds before invoking a callback
+const displayText = (title, subtitle, text, time, callback) => {
+  // Prime the message screen
+  setPopupMessage(title, subtitle, text);
+  // Show the message screen
+  showPopup(divData.$stageMessages);
+  // Display it for the desired time (mimic a event object to pass to the callback)
+  setTimeout(displayTextCallback, time, { data: { callback: callback } });
+}
+
+// Start the next wave
+const startNextWave = () => {
+  // Make sure nothing is moving
+  beginCutscene(false);
+  // Get the wave data
+  stateData.currentWaveInfo = waveData[stateData.currentWave];
+  // Increment the currentWave counter and update the UI
+  updateWaveNumber();
+  // Display the wave and tagline then start the wave
+  displayText('Wave '+stateData.currentWave, stateData.currentWaveInfo.tagline, '', 3000, ()=>{
+    endCutscene();
+    startEnemyAttack();
+  });
 }
 
 // Start the game
@@ -670,15 +814,16 @@ const startNewGame = () => {
   beginCutscene();
   $cutsceneActors.push(divData.$player);
   // Move the player into position
-  playerEnter();
+  playerEnter(startNextWave);
 }
 
 // Start a cutscene that the player can't change
-const beginCutscene = () => {
+const beginCutscene = (pausable=true) => {
   // Only if not already in a cutscene
   if (!stateData.cutscene) {
     // Update the state
     stateData.cutscene = true;
+    stateData.pausableCutscene = pausable;
     // Freeze everything but cutscene actors
     toggleGamePaused(true);
   }
@@ -706,11 +851,15 @@ const updateAnimationState = () => {
     // Get the list of sprites in this location
     let $children = spriteLocations[i].children();
     for (let idx=0; idx<$children.length; idx++) {
+      let $sprite = $children.eq(idx)
       // Pause or unpause animation based on pause state
       if (stateData.gamePaused) {
-        $children.eq(idx).addClass('paused');
+        $sprite.addClass('paused');
       } else {
-        $children.eq(idx).removeClass('paused');
+        if (!$sprite.hasClass('destroyed')) {
+          // Only resume live sprites
+          $sprite.removeClass('paused');
+        }
       }
     }
   }
@@ -728,19 +877,22 @@ const updateAnimationState = () => {
 // Player wants to pause the game
 const playerPressedPauseKey = () => {
   if (stateData.cutscene) {
-    // The player is pausing a cutscene
-    for (let idx=0; idx<$cutsceneActors.length; idx++) {
-      $cutsceneActors[idx].toggleClass('paused');
-    }
-    // Toggle the popup screens
-    if (!isPopupVisible(divData.$pause)) {
-      // Show the pause screen and enable the buttons
-      showPopup(divData.$pause);
-      setMainButtonsDisabled(false);
-    } else {
-      // Clear the screens and disable the buttons
-      hideAllPopups();
-      setMainButtonsDisabled(true);
+    // Only interrupt pausable cutscenes
+    if (stateData.pausableCutscene) {
+      // The player is pausing a cutscene
+      for (let idx=0; idx<$cutsceneActors.length; idx++) {
+        $cutsceneActors[idx].toggleClass('paused');
+      }
+      // Toggle the popup screens
+      if (!isPopupVisible(divData.$pause)) {
+        // Show the pause screen and enable the buttons
+        showPopup(divData.$pause);
+        setMainButtonsDisabled(false);
+      } else {
+        // Clear the screens and disable the buttons
+        hideAllPopups();
+        setMainButtonsDisabled(true);
+      }
     }
   } else {
     // The player is pausing the game
@@ -787,7 +939,7 @@ const keyListener = (event) => {
   // Only handle key events if we are in a game
   if (stateData.inGame) {
     if (event.keyCode === constants.spaceKey) {
-      if (!stateData.gamePaused) {
+      if (stateData.inWave && !stateData.gamePaused) {
         // Pressed space while the game was running outside of a cutscene
         fireWeapon();
       }
@@ -840,6 +992,8 @@ const toggleInstructions = () => {
 const runOnReady = () => {
   // Perform the one-time state init
   divInit();
+  // Make sure the wave end listener is defined
+  divData.$customEvents.on('wave:end', waveOver);
   // Make sure we know how big things are
   populateSizeData();
   // Add the global button listeners
