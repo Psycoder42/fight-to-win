@@ -2,6 +2,11 @@
   margin: 0;
   padding: 0;
   text-align: center;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: grey;
 }
 
 h1 {
@@ -21,7 +26,15 @@ h2 {
   display: flex;
   flex-direction: row;
   justify-content: center;
-  background-color: red;
+}
+
+#settings, #instructions, #sidebar-stats, #sidebar-controls {
+  background-color: slategrey;
+  border-top: 3px solid silver;
+  border-right: 3px solid silver;
+  border-bottom: 3px solid dimgrey;
+  border-left: 3px solid dimgrey;
+  overflow: hidden;
 }
 
 #game-area {
@@ -57,7 +70,7 @@ h2 {
   margin-bottom: 0;
 }
 
-#glass, #projectile-space, #pause, #instructions, #stage-messages {
+#glass, #projectile-space {
   position: absolute;
   top: 0;
   left: 0;
@@ -73,11 +86,21 @@ h2 {
 #stage-messages {
   color: white;
   z-index: 1;
+  text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
 #glass {
   cursor: none;
   z-index: 2;
+  border-top: 3px solid dimgrey;
+  border-right: 3px solid dimgrey;
+  border-bottom: 3px solid silver;
+  border-left: 3px solid silver;
+  overflow: hidden;
+}
+
+#glass.show-cursor {
+  cursor: auto;
 }
 
 #pause {
@@ -85,9 +108,12 @@ h2 {
   z-index: 3;
 }
 
-#instructions {
+#settings {
   z-index: 4;
-  background-color: purple;
+}
+
+#instructions {
+  z-index: 5;
 }
 
 #sidebar {
@@ -105,7 +131,10 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  background-color: white;
+}
+
+#sidebar-stats > h1 {
+  margin: 10px auto;
 }
 
 #sidebar-stats > h3 {
@@ -136,7 +165,6 @@ h2 {
   flex-direction: column;
   justify-content: space-around;
   align-items: stretch;
-  background-color: white;
 }
 
 #btn-restart {
@@ -159,9 +187,24 @@ h2 {
   margin: 5px 20px;
   padding: 5px;
   cursor: pointer;
+  background-color: silver;
+}
+
+.button:hover {
+  background-color: white;
+}
+
+.button:disabled {
+  color: dimgrey;
+  background-color: grey;
 }
 
 .popup {
+  position: absolute;
+  top: 3%;
+  left: 3%;
+  height: 94%;
+  width: 94%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -212,7 +255,13 @@ h2 {
 .power-up-expand-shot {
   width: 30px;
   height: 20px;
-  background-color: lightblue;
+  background-color: orange;
+}
+
+.power-up-speed-shot {
+  width: 30px;
+  height: 20px;
+  background-color: #EEEEEE;
 }
 
 .power-up-shield {
@@ -231,6 +280,12 @@ h2 {
   width: 30px;
   height: 20px;
   background-color: lightgreen;
+}
+
+.power-up-life {
+  width: 30px;
+  height: 20px;
+  background-color: lightblue;
 }
 
 .explosion {

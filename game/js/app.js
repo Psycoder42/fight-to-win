@@ -5,29 +5,41 @@ const constants = {
   escapeKey: 27,
   spaceKey: 32
 };
+// Game settings
+const settings = {
+  gameMode: 'campaign',
+  music: false,
+  soundEffects: false
+}
 // The random grab bag that makes up the enemys and their behavior
 const enemyOps = {
   type: ['basic'],
-  bullets: ['ani-ebullet-normal'],
-  style: ['ani-enemy-smooth','ani-enemy-smooth-fast'],
+  bullets: ['ani-ebullet-normal', 'ani-ebullet-fast'],
+  style: ['ani-enemy','ani-enemy-fast'],
+  modifiers: ['ease-in','ease-out'],
   endpoints: ['a','b','c','d','e','f','g','h']
 };
 // Array to store all the possible power ups
 const powerUps = [
-  {name: 'expand-shot', quantity: 5, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'expand-shot', quantity: 10, fireDelay: 500, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'speed-shot', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
   {name: 'shields', modifierType: 'ship'},
   {name: 'invulnerable', modifierType: 'ship'},
-  {name: 'points', modifierType: 'state'}
+  {name: 'points', modifierType: 'state'},
+  {name: 'life', modifierType: 'state'}
 ];
 // Object to store game state data
 const stateData = {
   // This is defined here because it shouldn't be reset on a new game
   highScore: 0
 };
-// Information about the attack waves
+// Information about the attack waves durring the campaign
 const waveData = [
   { enemyCount: 6, spawnDelay: 2000, tagline: "Those guys don't look frendly" },
-  { enemyCount: 10, spawnDelay: 2000, tagline: "Here come some more" }
+  { enemyCount: 10, spawnDelay: 2000, tagline: "Here come some more" },
+  { enemyCount: 15, spawnDelay: 1500, tagline: "I think we made them angry" },
+  { enemyCount: 20, spawnDelay: 1500, tagline: "Oh God, they're everywhere" },
+  { enemyCount: 30, spawnDelay: 1000, tagline: "Not on my watch" }
 ];
 const imgData = {}; // Object holding all of the source image locations
 const divData = {}; // Object to store div references
@@ -58,8 +70,10 @@ const divInit = () => {
   divData.$playerSpace = $('#player-space');
   divData.$bulletSpace = $('#projectile-space');
   divData.$instructions = $('#instructions');
+  divData.$settings = $('#settings');
   divData.$playerKills = $('#player-kills');
   divData.$playerScore = $('#player-score');
+  divData.$highScore = $('#high-score');
   divData.$waveNumber = $('#wave-number');
   divData.$extraLives = $('#extra-lives');
   divData.$effectInsertLoc = $('#sidebar-stats > .spacer');
@@ -92,8 +106,10 @@ const resetState = () => {
   stateData.powerShotName = null;
   stateData.powerShotClass = null;
   // misc
+  stateData.firingDelay = 500;
   stateData.currentWaveInfo = null;
   stateData.collisionDetectionTimer = null;
+  stateData.enemySpawnBonusChance = .25;
   // Clean up objects and UI
   resetObjectStates();
   resetUI();
@@ -137,6 +153,21 @@ const clearObject = (obj) => {
   }
 }
 
+// Set the animation state for all of the sprites
+const ensureSpritesAreRemoved = () => {
+  // All the places where sprites might live
+  let spriteLocations = [divData.$enemySpace, divData.$bonusSpace, divData.$bulletSpace];
+  // Check all locations
+  for (let i=0; i<spriteLocations.length; i++) {
+    // Get the list of sprites in this location
+    let $children = spriteLocations[i].children();
+    // Remove all of them
+    for (let j=$children.length-1; j>=0; j--) $children.eq(j).remove();
+  }
+  // Remove any misc sprite animations
+  for (let idx=0; idx<$miscSprites.length; idx++) $miscSprites[idx].remove();
+}
+
 // Reset the arrays and objects appropriately
 const resetObjectStates = () => {
   // Stop all of the timeouts
@@ -147,6 +178,7 @@ const resetObjectStates = () => {
   for (let $array of [$pCollidables,$pProjectiles,$eProjectiles,$miscSprites]) {
     clearDisplayableArray($array);
   }
+  ensureSpritesAreRemoved();
   // Clean out without doing anything with the elements
   clearArray($cutsceneActors);
   clearArray(activeBonuses);
@@ -163,21 +195,16 @@ const updateEffectsList = () => {
 }
 
 // Update extra lives list
-const updateExtraLives = (reset=false) => {
+const updateExtraLives = (amount) => {
+  // Adjust the number of lives remaining
+  stateData.livesRemaining += amount;
+  // Make sure to start from a blank slate
   let $extraLives = divData.$extraLives.children();
-  if (reset) {
-    // Make sure they are all gone
-    $extraLives.each((idx, elem)=>{ $(elem).remove(); });
-    // Add the appropriate number back
-    for (let i=0; i<stateData.livesRemaining; i++) {
-      let $life = $('<img>').addClass('extra-life').attr('src',imgData.$playerImg.attr('src'));
-      divData.$extraLives.append($life);
-    }
-  } else {
-    // Update the game state
-    stateData.livesRemaining--;
-    // Remove an extra life
-    $extraLives.last().remove();
+  $extraLives.each((idx, elem)=>{ $(elem).remove(); });
+  // Add the appropriate number back
+  for (let i=0; i<stateData.livesRemaining; i++) {
+    let $life = $('<img>').addClass('extra-life').attr('src',imgData.$playerImg.attr('src'));
+    divData.$extraLives.append($life);
   }
 }
 
@@ -195,6 +222,16 @@ const updatePlayerScore = (amount) => {
   stateData.playerScore += amount;
   // Update the UI
   divData.$playerScore.text(stateData.playerScore);
+}
+
+// Update the high score
+const updateHighScore = () => {
+  // Update the game state
+  if (stateData.highScore < stateData.playerScore) {
+    stateData.highScore = stateData.playerScore;
+  }
+  // Update the UI
+  divData.$highScore.text(stateData.highScore);
 }
 
 // Update the player's score
@@ -220,12 +257,17 @@ const resetUI = () => {
   // Reset the effects list
   updateEffectsList();
   // Reset the extra lives
-  updateExtraLives(true);
+  updateExtraLives(0);
 }
 
 // Helper function to generate a random boolean
 const flipCoin = () => {
   return (Math.trunc(Math.random()*2)%2 == 0);
+}
+
+// Helper method to determine the game mode
+const gameModeIfinite = () => {
+  return (settings.gameMode == 'infinite');
 }
 
 // Move a sprite to its current location with respects to a parent
@@ -352,9 +394,11 @@ const applyPowerUp = (index) => {
   if (info.modifierType == 'weapon') {
     // A new shot type will replace an old one
     trackPowerUp(stateData.powerShotName, false);
+    stateData.powerShotName = info.fireDelay;
     stateData.powerShotName = info.name;
     stateData.powerShotClass = info.modifierClass;
     stateData.powerShotsRemaining = info.quantity;
+    trackPowerUp(info.name, true);
   } else if (info.modifierType == 'ship') {
     switch (info.name) {
       case 'invulnerable':
@@ -365,17 +409,19 @@ const applyPowerUp = (index) => {
         divData.$player.addClass('shield');
         break;
     }
-  } else if (info.modifierType == 'ship') {
+    trackPowerUp(info.name, true);
+  } else if (info.modifierType == 'state') {
     switch (info.name) {
       case 'points':
         // Award a random points - multiple of 50 between 100-1000
         updatePlayerScore(((Math.floor(Math.random()*19) + 1) * 50));
         break;
+      case 'life':
+        // The player gains an extra life
+        updateExtraLives(1);
+        break;
     }
-    // We want to shortcut out of this function since we don't want to have state changes show up as effects
-    return;
   }
-  trackPowerUp(info.name, true);
 }
 
 // Handle a player bullet hitting something
@@ -413,7 +459,14 @@ const enemyWasDestroyed = ($enemy) => {
 // Final interaction with defeated enemy
 const benefitFromDeadEnemy = ($enemy) => {
   // Increase the player score and spawn bonuses and stuff
-
+  let spawn = $enemy.attr('data-pu-spawn');
+  if (spawn != null) {
+    if (spawn == 'random') {
+      spawnPowerUp();
+    } else {
+      spawnPowerUp(parseInt(spawn));
+    }
+  }
   // Cleanup the enemy
   stateData.enemiesKilled++;
   cleanObjectFormArrayAndDOM($enemy, $pCollidables);
@@ -486,9 +539,11 @@ const spawnEnemy = () => {
     // Only spawn if the game is not paused
     let eClass = 'enemy-' + enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
     let eStyle = enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)];
+    let eMod = enemyOps.modifiers[Math.floor(Math.random()*enemyOps.modifiers.length)];
     let eDest = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
     let eAmmo = enemyOps.bullets[Math.floor(Math.random()*enemyOps.bullets.length)];
     let xPos = (Math.floor(Math.random()*50)+20);
+    let hasBonus = (Math.random() <= stateData.enemySpawnBonusChance);
     let enemyId = getUniqueId('e-');
     // Generate the new enemy
     let $enemy = $('<div>').addClass(eClass).addClass('reusable-sprite')
@@ -498,8 +553,12 @@ const spawnEnemy = () => {
         .attr('data-bullet-type', eAmmo)
         // Set its spawn point
         .css('top', '-50px')
-        .css('left', xPos+'%')
-        // Attach it to the DOM
+        .css('left', xPos+'%');
+    if (hasBonus) {
+      // This enemy will spawn a bonus when killed
+      $enemy.attr('data-pu-spawn', 'random');
+    }
+    // Attach it to the DOM
     divData.$enemySpace.append($enemy);
     // Make sure this honors the pause state
     if (stateData.gamePaused) $enemy.addClass('paused');
@@ -608,6 +667,8 @@ const firePlayerWeapon = (spawnPoint) => {
     if (stateData.powerShotsRemaining == 0) {
       // Ran out of power shots so remove the bonus from the list
       trackPowerUp(stateData.powerShotName, false);
+      // Reset to the default firing delay
+      stateData.firingDelay = 500;
     }
   }
   $projectile.addClass(bulletAni);
@@ -653,7 +714,7 @@ const fireWeapon = () => {
     // Fire the weapon
     firePlayerWeapon(getProjectileSpawnPoint(divData.$player, true));
     // Set a timeout to re-enable firing after .5 seconds
-    setTimeout(()=>{ stateData.canFire=true; }, 500);
+    setTimeout(()=>{ stateData.canFire=true; }, stateData.firingDelay);
   }
   // Prevent the event from travelling any further down
   return false;
@@ -672,21 +733,29 @@ const moveEnemy = ($enemy) => {
   $enemy.addClass(enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)])
       // When the animation complete clean state and repeat
       .on('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
+  // Randomly modify movement
+  $enemy.removeClass(enemyOps.modifiers.join(' '));
+  if (flipCoin()) {
+    $enemy.addClass(enemyOps.modifiers[Math.floor(Math.random()*enemyOps.modifiers.length)]);
+  }
   // Start the animation
   $enemy.css('animation-name', nextLoc);
 }
 
 // Make the player ship move with the mouse's horizontal position
 const movePlayer = (event) => {
-  // Get the position of the mouse relative to the glass div
-  let xPos = event.clientX - sizeData.glassBounds.left;
-  // Make sure the ship doesn't leave the left side of the screen
-  xPos = Math.max(10, xPos);
-  // Make sure the ship doesn't leave the right side of the screen
-  let rightEdge = sizeData.glassBounds.width-constants.playerWidth;
-  xPos = Math.min(xPos, rightEdge-10);
-  // Reposition the player's ship
-  divData.$player.css('left', Math.round(xPos)+'px');
+  // Only move player when enemies are around
+  if (stateData.inWave) {
+    // Get the position of the mouse relative to the glass div
+    let xPos = event.clientX - sizeData.glassBounds.left;
+    // Make sure the ship doesn't leave the left side of the screen
+    xPos = Math.max(10, xPos);
+    // Make sure the ship doesn't leave the right side of the screen
+    let rightEdge = sizeData.glassBounds.width-constants.playerWidth;
+    xPos = Math.min(xPos, rightEdge-10);
+    // Reposition the player's ship
+    divData.$player.css('left', Math.round(xPos)+'px');
+  }
 }
 
 // Player ship enters the screen
@@ -719,7 +788,7 @@ const makePlayerInvulnerable = () => {
 // Bring in the next ship after a player death
 const spawnNextLife = () => {
   // Take away one of their extra lives
-  updateExtraLives();
+  updateExtraLives(-1);
   // Bring the next ship in and make them temporarily invulnerable
   playerEnter(makePlayerInvulnerable);
 }
@@ -741,7 +810,7 @@ const waveOver = () => {
   // Remove all of the player bullets from the screen
   clearDisplayableArray($pProjectiles);
   // Start the next wave or show the win screen
-  if (stateData.currentWave < waveData.length) {
+  if (gameModeIfinite() || stateData.currentWave < waveData.length) {
     startNextWave();
   } else {
     // Make sure everything is stopped
@@ -773,6 +842,8 @@ const displayEndScreen = () => {
   setPopupMessage("Thanks for Playing!", '', "Remember, winners don't do drugs!");
   // Show the message screen
   showPopup(divData.$stageMessages);
+  // Give the cursor back
+  divData.$glass.addClass('show-cursor');
 }
 
 // The game is over
@@ -780,15 +851,15 @@ const gameOver = () => {
   // Detatch the player
   divData.$player.detach();
   // Remove all of the potentially visible sprites
-  clearDisplayableArray($pCollidables);
-  clearDisplayableArray($eProjectiles);
-  clearDisplayableArray($pProjectiles);
+  resetObjectStates();
   // Indicate we are no longer in a game
   stateData.inGame = false;
   // Re-enable the main buttons
   setMainButtonsDisabled(false);
   // Show the end screen
   displayEndScreen();
+  // Adjust the highscore data if necessary
+  updateHighScore();
 }
 
 // Alter the enablement state of the main window buttons
@@ -820,7 +891,16 @@ const startNextWave = () => {
   // Make sure nothing is moving
   beginCutscene(false);
   // Get the wave data
-  stateData.currentWaveInfo = waveData[stateData.currentWave];
+  if (gameModeIfinite()) {
+    // Generate the next waveInfo
+    stateData.currentWaveInfo = {
+      enemyCount: 8+(8*stateData.currentWave),
+      spawnDelay: Math.max(500, 2000-(100*stateData.currentWave)),
+      tagline: '-- Infinite Mode --'
+    }
+  } else {
+    stateData.currentWaveInfo = waveData[stateData.currentWave];
+  }
   // Increment the currentWave counter and update the UI
   updateWaveNumber();
   // Display the wave and tagline then start the wave
@@ -838,6 +918,8 @@ const startNewGame = () => {
   stateData.inGame = true;
   // disable the main buttons while in an active game
   setMainButtonsDisabled(true);
+  // Hide the cursor
+  divData.$glass.removeClass('show-cursor');
   // Indicate that a cutscene is running
   beginCutscene();
   $cutsceneActors.push(divData.$player);
@@ -1001,18 +1083,22 @@ const hideAllPopups = () => {
   });
 }
 
-// Open the settings page
 const openSettings = () => {
-
+  if (isPopupVisible(divData.$settings)) {
+    hidePopup(divData.$settings);
+  } else {
+    hidePopup(divData.$instructions);
+    showPopup(divData.$settings);
+  }
 }
 
 // Open the game instructions page
 const toggleInstructions = () => {
-  let $instructions = $('#instructions');
-  if (isPopupVisible($instructions)) {
-    hidePopup($instructions);
+  if (isPopupVisible(divData.$instructions)) {
+    hidePopup(divData.$instructions);
   } else {
-    showPopup($instructions);
+    hidePopup(divData.$settings);
+    showPopup(divData.$instructions);
   }
 }
 

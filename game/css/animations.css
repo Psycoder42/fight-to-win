@@ -44,6 +44,16 @@
   animation-fill-mode: forwards;
 }
 
+.ani-pbullet-speed {
+  background-color: lightblue;
+  box-shadow: 0 0 16px lightblue;
+  animation-name: player-bullet-normal;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-duration: 2s;
+  animation-fill-mode: forwards;
+}
+
 @keyframes player-bullet-normal {
   100% { transform: translateY(-1000px); }
 }
@@ -102,13 +112,13 @@
 * Enemy related animations
 *******************************************/
 
-.ani-enemy-smooth {
+.ani-enemy {
   animation-timing-function: linear;
   animation-duration: 3s;
   animation-fill-mode: forwards;
 }
 
-.ani-enemy-smooth-fast {
+.ani-enemy-fast {
   animation-timing-function: linear;
   animation-duration: 2s;
   animation-fill-mode: forwards;
@@ -154,6 +164,16 @@
   animation-fill-mode: forwards;
 }
 
+.ani-ebullet-fast {
+  background-color: yellow;
+  box-shadow: 0 0 16px yellow;
+  animation-name: enemy-bullet-normal;
+  animation-timing-function: ease-in;
+  animation-iteration-count: 1;
+  animation-duration: 2.5s;
+  animation-fill-mode: forwards;
+}
+
 @keyframes enemy-bullet-normal {
   100% { transform: translateY(1000px); }
 }
@@ -179,6 +199,14 @@
 /******************************************
 * Animmation modifiers
 *******************************************/
+
+.ease-in {
+  animation-timing-function: ease-in;
+}
+
+.ease-out {
+  animation-timing-function: ease-out;
+}
 
 .paused {
   -webkit-animation-play-state: paused;
