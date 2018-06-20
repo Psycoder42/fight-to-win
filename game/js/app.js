@@ -8,8 +8,8 @@ const constants = {
 // Game settings
 const settings = {
   gameMode: 'campaign',
-  music: false,
-  soundEffects: false
+  musicMuted: false,
+  soundEffectsMuted: false
 }
 // The random grab bag that makes up the enemys and their behavior
 const enemyOps = {
@@ -58,6 +58,22 @@ const loadImages = () => {
 }
 // We want to run this immediately and not wait for the page to load
 loadImages();
+
+// Load all the sounds
+const sounds = {
+  effects: new Howl({
+    src: ['sounds/effects.ogg'],
+    sprite: {
+      buttonHighlight: [0, 90],
+      buttonClick: [91, 340]
+    }
+  }),
+  music: new Howl({
+    src: ['sounds/bg.ogg'],
+    loop: true,
+    volume: 0.2
+  })
+}
 
 // This only needs to happen once
 const divInit = () => {
@@ -860,6 +876,8 @@ const gameOver = () => {
   displayEndScreen();
   // Adjust the highscore data if necessary
   updateHighScore();
+  // Stop the music
+  sounds.music.stop();
 }
 
 // Alter the enablement state of the main window buttons
@@ -920,12 +938,26 @@ const startNewGame = () => {
   setMainButtonsDisabled(true);
   // Hide the cursor
   divData.$glass.removeClass('show-cursor');
+  // Determine the gameMode
+  settings.gameMode = $('input[name=gamemode]:checked').val();
+  // (Re)start the background music
+  beginMusic();
   // Indicate that a cutscene is running
   beginCutscene();
   $cutsceneActors.push(divData.$player);
   // Move the player into position
   playerEnter(startNextWave);
 }
+
+// Stop (if playing) then restart the background music
+const beginMusic = () => {
+  // Stop and reset the music
+  sounds.music.stop();
+  // Start it again
+  sounds.music.play();
+  // Honor the mute settings
+  sounds.music.mute(settings.musicMuted);
+};
 
 // Start a cutscene that the player can't change
 const beginCutscene = (pausable=true) => {
@@ -1083,7 +1115,8 @@ const hideAllPopups = () => {
   });
 }
 
-const openSettings = () => {
+//  Toggle the game settings page
+const toggleSettings = () => {
   if (isPopupVisible(divData.$settings)) {
     hidePopup(divData.$settings);
   } else {
@@ -1092,7 +1125,7 @@ const openSettings = () => {
   }
 }
 
-// Open the game instructions page
+//  Toggle the game instructions page
 const toggleInstructions = () => {
   if (isPopupVisible(divData.$instructions)) {
     hidePopup(divData.$instructions);
@@ -1100,6 +1133,37 @@ const toggleInstructions = () => {
     hidePopup(divData.$settings);
     showPopup(divData.$instructions);
   }
+}
+
+// Close the popup where the button was pressed
+const popupClosed = (event) => {
+  // Hide the ancestor with the popup class
+  $(event.currentTarget).closest('.popup').addClass('hidden');
+  // Prevent any default behavior
+  return false;
+}
+
+// Play a sound
+const playSound = (event) => {
+  if (!settings.soundEffectsMuted) {
+    let clip = event.data.clip;
+    if (clip == null) {
+      event.data.sound.play();
+    } else {
+      event.data.sound.play(clip);
+    }
+  }
+}
+
+// Toggle the sounds
+const toggleSound = (event) => {
+  settings.soundEffectsMuted = $(event.currentTarget).prop('checked');
+}
+
+// Mute the background music
+const muteMusic = (event) => {
+  settings.musicMuted = $(event.currentTarget).prop('checked');
+  sounds.music.mute(settings.musicMuted);
 }
 
 // To run after page loads
@@ -1110,10 +1174,18 @@ const runOnReady = () => {
   divData.$customEvents.on('wave:end', waveOver);
   // Make sure we know how big things are
   populateSizeData();
+  // Attach sounds
+  $('.button').on('mouseenter', {sound: sounds.effects, clip: 'buttonHighlight'}, playSound);
+  $('.button').on('click', {sound: sounds.effects, clip: 'buttonClick'}, playSound);
   // Add the global button listeners
+  $('.popup-close').on('click', popupClosed);
   $('#btn-restart').on('click', startNewGame);
-  $('#btn-settings').on('click', openSettings);
+  $('#btn-settings').on('click', toggleSettings);
   $('#btn-instruct').on('click', toggleInstructions);
+  $('#mute-music').prop('checked', settings.musicMuted)
+      .on('change', {sound: sounds.effects}, muteMusic);
+  $('#mute-effects').prop('checked', settings.soundEffectsMuted)
+      .on('change', {sound: sounds.effects}, toggleSound);
   // Handle window resizes
   $(window).on('resize', populateSizeData);
   // Handle key presses

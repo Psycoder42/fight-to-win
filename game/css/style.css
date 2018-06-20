@@ -19,6 +19,24 @@ h2 {
   align-self: center;
 }
 
+form * {
+  text-align: left;
+  padding: 5px;
+  margin: 0 5px;
+}
+
+form p {
+  margin-left: 10px;
+}
+
+form input {
+  margin: 2px;
+}
+
+fieldset {
+  margin: 10px;
+}
+
 #content {
   min-height: 700px;
   max-height: 900px;
@@ -31,9 +49,9 @@ h2 {
 #settings, #instructions, #sidebar-stats, #sidebar-controls {
   background-color: slategrey;
   border-top: 3px solid silver;
-  border-right: 3px solid silver;
+  border-left: 3px solid silver;
   border-bottom: 3px solid dimgrey;
-  border-left: 3px solid dimgrey;
+  border-right: 3px solid dimgrey;
   overflow: hidden;
 }
 
@@ -70,7 +88,7 @@ h2 {
   margin-bottom: 0;
 }
 
-#glass, #projectile-space {
+#glass, #projectile-space, #pause, #stage-messages {
   position: absolute;
   top: 0;
   left: 0;
@@ -93,10 +111,13 @@ h2 {
   cursor: none;
   z-index: 2;
   border-top: 3px solid dimgrey;
-  border-right: 3px solid dimgrey;
+  border-left: 3px solid dimgrey;
   border-bottom: 3px solid silver;
-  border-left: 3px solid silver;
+  border-right: 3px solid silver;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 #glass.show-cursor {
@@ -200,15 +221,12 @@ h2 {
 }
 
 .popup {
-  position: absolute;
-  top: 3%;
-  left: 3%;
-  height: 94%;
-  width: 94%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   cursor: auto;
+  margin: 0 auto;
+  padding: 15px;
 }
 
 .popup.overlay {
@@ -217,6 +235,10 @@ h2 {
 
 .popup.hidden {
   display: none;
+}
+
+.popup-container {
+  margin: 0 auto;
 }
 
 .sprite-field {

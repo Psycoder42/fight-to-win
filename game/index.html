@@ -11,6 +11,7 @@
     integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
     crossorigin="anonymous">
   </script>
+  <script type="text/javascript" src="js/howler.core.js"></script>
   <script type="text/javascript" src="js/skinny.js"></script>
   <script type="text/javascript" src="js/callbacks.js"></script>
   <script type="text/javascript" src="js/app.js"></script>
@@ -26,21 +27,74 @@
           </div>
         </div>
         <div id="projectile-space" class="sprite-field"></div>
-        <div id="glass" class="show-cursor"></div>
         <div id="stage-messages" class="popup">
           <h1 class="title">Press New Game to Start</h1>
           <h2 class="subtitle"></h2>
           <p class="text"></p>
         </div>
-        <div id="pause" class="popup overlay hidden">
-          <h1>PAUSED</h1>
-          <h2>(Press Escape to Resume)</h2>
-        </div>
-        <div id="instructions" class="popup overlay">
-          <h1>Instructions</h1>
-        </div>
-        <div id="settings" class="popup overlay hidden">
-          <h1>Settings</h1>
+        <div id="glass" class="show-cursor">
+          <div id="pause" class="popup overlay hidden">
+            <h1>PAUSED</h1>
+            <h2>(Press Escape to Resume)</h2>
+          </div>
+          <div id="instructions" class="popup overlay">
+            <h1>Instructions</h1>
+            <div class="popup-container">
+              <form>
+                <p>
+                  Fight to Win! is a game where you have to fight <br>
+                  if you want to win.
+                </p>
+                <p>
+                  You are the pilot of a lone fighter battling a <br>
+                  horde of invading enemies. You have only your <br>
+                  agility and an infinite supply of ammo to aid <br>
+                  you in surviving the upcoming onslaught.
+                </p>
+                <p>
+                  Move your mouse left and right over the battlefield <br>
+                  to avoid enemy fire or align the perfect shot. Use <br>
+                  the space key to fire your weapons.
+                </p>
+                <p>
+                  Keep an eye out for passing bonus containers which <br>
+                  contain useful perks like additional points, upgraded <br>
+                  ammo, temporary invulnerability, and extra lives.
+                </p>
+                <p>
+                  Good Luck!
+                </p>
+                <button type="button" class="button popup-close">Close</button>
+              </form>
+            </div>
+          </div>
+          <div id="settings" class="popup overlay hidden">
+            <h1>Settings</h1>
+            <div class="popup-container">
+              <form>
+                <fieldset>
+                  <legend>Game Mode (takes effect on new games)</legend>
+                  <input type="radio" name="gamemode" value="campaign" checked><label>Campaign</label>
+                  <p>
+                    Survive 5 waves of enemy attacks in order to <br>
+                    save the universe.
+                  </p>
+                  <input type="radio" name="gamemode" value="infinite"><label>Infinite</label>
+                  <p>
+                    There's no getting out of this one alive but if <br>
+                    you're going down, you can at least take out as <br>
+                    many enemies as possible first.
+                  </p>
+                </fieldset>
+                <fieldset>
+                  <legend>Sound</legend>
+                  <input id="mute-music" type="checkbox"><label>Mute Music</label><br>
+                  <input id="mute-effects" type="checkbox"><label>Mute Sound Effects</label>
+                </fieldset>
+                <button type="button" class="button popup-close">Close</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
       <div id="sidebar">
