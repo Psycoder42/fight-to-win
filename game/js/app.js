@@ -1,7 +1,7 @@
 // Object to store static values
 const constants = {
-  playerWidth: 40,
-  playerHeight: 40,
+  playerWidth: 50,
+  playerHeight: 64,
   escapeKey: 27,
   spaceKey: 32
 };
@@ -54,7 +54,8 @@ const $cutsceneActors = []; // Array to store actors in a cutscene
 
 // Load all of the images asyncronously
 const loadImages = () => {
-  imgData.$playerImg = $('<img>').attr('src', 'images/ship_placeholder.png');
+  imgData.$player = $('<img>').attr('src', 'images/player.png');
+  imgData.$explosion = $('<img>').attr('src', 'images/explosion.png');
 }
 // We want to run this immediately and not wait for the page to load
 loadImages();
@@ -64,8 +65,11 @@ const sounds = {
   effects: new Howl({
     src: ['sounds/effects.ogg'],
     sprite: {
-      buttonHighlight: [0, 90],
-      buttonClick: [91, 340]
+      swoosh: [0, 85],
+      click: [100, 225],
+      softBeep: [350, 110],
+      explode: [500, 1800],
+      energyShot: [2400, 500]
     }
   }),
   music: new Howl({
@@ -219,7 +223,9 @@ const updateExtraLives = (amount) => {
   $extraLives.each((idx, elem)=>{ $(elem).remove(); });
   // Add the appropriate number back
   for (let i=0; i<stateData.livesRemaining; i++) {
-    let $life = $('<img>').addClass('extra-life').attr('src',imgData.$playerImg.attr('src'));
+    let $life = $('<img>').addClass('extra-life')
+        .attr('src',imgData.$player.attr('src'))
+        .css('width','40px').css('height','100%');
     divData.$extraLives.append($life);
   }
 }
@@ -494,9 +500,10 @@ const benefitFromDeadEnemy = ($enemy) => {
 const makeExplode = ($sprite, callback=null, animationNumber=1) => {
   // Spawn the explosion on the center of the sprite
   let spriteRect = rect($sprite);
-  let $explosion = $('<div>').addClass('explosion')
-      .css('top', (spriteRect.halfHeight-25)+'px')
-      .css('left', (spriteRect.halfWidth-25)+'px')
+  let $explosion = $('<img>').addClass('explosion')
+      .attr('src', imgData.$explosion.attr('src'))
+      .css('top', (spriteRect.halfHeight-30)+'px')
+      .css('left', (spriteRect.halfWidth-30)+'px')
       // Add an id so that it is easier to identify
       .attr('data-id', getUniqueId('a-'))
       // Have it remove itself from the DOM when the animation ends
@@ -510,6 +517,8 @@ const makeExplode = ($sprite, callback=null, animationNumber=1) => {
   trackingArray.push($explosion);
   // Add the explosion to the sprite
   $sprite.append($explosion);
+  // Play the sound
+  playSoundInstance(sounds.effects, 'explode', 0.2);
   // Start the animation
   $explosion.addClass('ani-explosion-'+animationNumber);
 }
@@ -727,6 +736,8 @@ const fireWeapon = () => {
   if (stateData.canFire) {
     // Temporarily disable firing
     stateData.canFire = false;
+    // Play the sound
+    playSoundInstance(sounds.effects, 'energyShot');
     // Fire the weapon
     firePlayerWeapon(getProjectileSpawnPoint(divData.$player, true));
     // Set a timeout to re-enable firing after .5 seconds
@@ -1084,12 +1095,13 @@ const keyListener = (event) => {
       if (stateData.inWave && !stateData.gamePaused) {
         // Pressed space while the game was running outside of a cutscene
         fireWeapon();
+        return false;
       }
     } else if (event.keyCode === constants.escapeKey) {
       // toggle the paused state
       playerPressedPauseKey();
+      return false;
     }
-    return false;
   }
 }
 
@@ -1143,21 +1155,30 @@ const popupClosed = (event) => {
   return false;
 }
 
-// Play a sound
-const playSound = (event) => {
+// Play a sound for a button
+const playButtonSound = (event) => {
+  if (!$(event.currentTarget).prop('disabled')) {
+    playSoundInstance(event.data.sound, event.data.clip);
+  }
+}
+
+// Play an instance of a sound
+const playSoundInstance = (soundSprite, clip=null, volume=1.0) => {
   if (!settings.soundEffectsMuted) {
-    let clip = event.data.clip;
+    let soundId = null;
     if (clip == null) {
-      event.data.sound.play();
+      soundId = soundSprite.play();
     } else {
-      event.data.sound.play(clip);
+      soundId = soundSprite.play(clip);
     }
+    soundSprite.volume(volume, soundId);
   }
 }
 
 // Toggle the sounds
 const toggleSound = (event) => {
   settings.soundEffectsMuted = $(event.currentTarget).prop('checked');
+  sounds.effects.mute(settings.soundEffectsMuted);
 }
 
 // Mute the background music
@@ -1170,13 +1191,15 @@ const muteMusic = (event) => {
 const runOnReady = () => {
   // Perform the one-time state init
   divInit();
+  // Add the player image to the div
+  divData.$player.append($('<img>').attr('src', imgData.$player.attr('src')));
   // Make sure the wave end listener is defined
   divData.$customEvents.on('wave:end', waveOver);
   // Make sure we know how big things are
   populateSizeData();
   // Attach sounds
-  $('.button').on('mouseenter', {sound: sounds.effects, clip: 'buttonHighlight'}, playSound);
-  $('.button').on('click', {sound: sounds.effects, clip: 'buttonClick'}, playSound);
+  $('.button').on('mouseenter', {sound: sounds.effects, clip: 'softBeep'}, playButtonSound);
+  $('.button').on('click', {sound: sounds.effects, clip: 'click'}, playButtonSound);
   // Add the global button listeners
   $('.popup-close').on('click', popupClosed);
   $('#btn-restart').on('click', startNewGame);
@@ -1189,7 +1212,7 @@ const runOnReady = () => {
   // Handle window resizes
   $(window).on('resize', populateSizeData);
   // Handle key presses
-  $(document).on('keyup', keyListener);
+  $(document).on('keydown', keyListener);
 }
 
 // Run when the page is done loading

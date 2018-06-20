@@ -16,8 +16,8 @@
 }
 
 @keyframes player-enter {
-  70% { transform: translateY(-70px); }
-  100% { transform: translateY(-70px); }
+  70% { transform: translateY(-80px); }
+  100% { transform: translateY(-80px); }
 }
 
 .ani-invulnerable {

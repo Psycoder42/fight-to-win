@@ -107,9 +107,14 @@ fieldset {
   text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
+#pause {
+  color: white;
+  z-index: 2;
+}
+
 #glass {
   cursor: none;
-  z-index: 2;
+  z-index: 3;
   border-top: 3px solid dimgrey;
   border-left: 3px solid dimgrey;
   border-bottom: 3px solid silver;
@@ -122,11 +127,6 @@ fieldset {
 
 #glass.show-cursor {
   cursor: auto;
-}
-
-#pause {
-  color: white;
-  z-index: 3;
 }
 
 #settings {
@@ -170,7 +170,7 @@ fieldset {
 }
 
 #extra-lives {
-  min-height: 50px;
+  min-height: 61px;
   max-height: 180px;
   margin: 5px 20px 10px 20px;
   display: flex;

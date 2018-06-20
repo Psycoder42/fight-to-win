@@ -22,9 +22,7 @@
         <div id="bonus-space" class="sprite-field"></div>
         <div id="empty-space"></div>
         <div id="player-space" class="sprite-field">
-          <div id='player' class="reusable-sprite">
-            <img src="images/ship_placeholder.png">
-          </div>
+          <div id='player' class="reusable-sprite"></div>
         </div>
         <div id="projectile-space" class="sprite-field"></div>
         <div id="stage-messages" class="popup">
@@ -32,11 +30,11 @@
           <h2 class="subtitle"></h2>
           <p class="text"></p>
         </div>
+        <div id="pause" class="popup overlay hidden">
+          <h1>PAUSED</h1>
+          <h2>(Press Escape to Resume)</h2>
+        </div>
         <div id="glass" class="show-cursor">
-          <div id="pause" class="popup overlay hidden">
-            <h1>PAUSED</h1>
-            <h2>(Press Escape to Resume)</h2>
-          </div>
           <div id="instructions" class="popup overlay">
             <h1>Instructions</h1>
             <div class="popup-container">
@@ -54,7 +52,8 @@
                 <p>
                   Move your mouse left and right over the battlefield <br>
                   to avoid enemy fire or align the perfect shot. Use <br>
-                  the space key to fire your weapons.
+                  the space key to fire your weapons. Pressing the <br>
+                  escape key will pause the game.
                 </p>
                 <p>
                   Keep an eye out for passing bonus containers which <br>
