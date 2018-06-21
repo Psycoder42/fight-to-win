@@ -13,7 +13,7 @@ const settings = {
 }
 // The random grab bag that makes up the enemys and their behavior
 const enemyOps = {
-  type: ['basic'],
+  type: ['grey', 'red', 'green'],
   bullets: ['ani-ebullet-normal', 'ani-ebullet-fast'],
   style: ['ani-enemy','ani-enemy-fast'],
   modifiers: ['ease-in','ease-out'],
@@ -21,12 +21,12 @@ const enemyOps = {
 };
 // Array to store all the possible power ups
 const powerUps = [
-  {name: 'expand-shot', quantity: 10, fireDelay: 500, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
-  {name: 'speed-shot', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
-  {name: 'shields', modifierType: 'ship'},
-  {name: 'invulnerable', modifierType: 'ship'},
-  {name: 'points', modifierType: 'state'},
-  {name: 'life', modifierType: 'state'}
+  {name: 'expand-shot', skin: 'expand', quantity: 10, fireDelay: 500, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'speed-shot', skin: 'speed', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
+  {name: 'shields', skin: 'shield', modifierType: 'ship'},
+  {name: 'invulnerable', skin: 'immune', modifierType: 'ship'},
+  {name: 'points', skin: 'points', modifierType: 'state'},
+  {name: 'life', skin: 'life', modifierType: 'state'}
 ];
 // Object to store game state data
 const stateData = {
@@ -55,7 +55,16 @@ const $cutsceneActors = []; // Array to store actors in a cutscene
 // Load all of the images asyncronously
 const loadImages = () => {
   imgData.$player = $('<img>').attr('src', 'images/player.png');
-  imgData.$explosion = $('<img>').attr('src', 'images/explosion.png');
+  imgData.$greyEnemy = $('<img>').attr('src', 'images/enemy0.png');
+  imgData.$redEnemy = $('<img>').attr('src', 'images/enemy1.png');
+  imgData.$greenEnemy = $('<img>').attr('src', 'images/enemy2.png');
+  imgData.$explosion = $('<img>').attr('src', 'images/fireball.png');
+  imgData.$lifeBonus = $('<img>').attr('src', 'images/pu-life.png');
+  imgData.$pointsBonus = $('<img>').attr('src', 'images/pu-points.png');
+  imgData.$shieldBonus = $('<img>').attr('src', 'images/pu-shield.png');
+  imgData.$immuneBonus = $('<img>').attr('src', 'images/pu-immune.png');
+  imgData.$expandBonus = $('<img>').attr('src', 'images/pu-expand.png');
+  imgData.$speedBonus = $('<img>').attr('src', 'images/pu-speed.png');
 }
 // We want to run this immediately and not wait for the page to load
 loadImages();
@@ -502,8 +511,8 @@ const makeExplode = ($sprite, callback=null, animationNumber=1) => {
   let spriteRect = rect($sprite);
   let $explosion = $('<img>').addClass('explosion')
       .attr('src', imgData.$explosion.attr('src'))
-      .css('top', (spriteRect.halfHeight-30)+'px')
-      .css('left', (spriteRect.halfWidth-30)+'px')
+      .css('top', (spriteRect.halfHeight-40)+'px')
+      .css('left', (spriteRect.halfWidth-40)+'px')
       // Add an id so that it is easier to identify
       .attr('data-id', getUniqueId('a-'))
       // Have it remove itself from the DOM when the animation ends
@@ -562,7 +571,9 @@ const spawnEnemy = () => {
   }
   if (!stateData.gamePaused) {
     // Only spawn if the game is not paused
-    let eClass = 'enemy-' + enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
+    let eType = enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
+    let eClass = 'enemy-' + eType;
+    let eSkin = imgData['$'+eType+'Enemy'];
     let eStyle = enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)];
     let eMod = enemyOps.modifiers[Math.floor(Math.random()*enemyOps.modifiers.length)];
     let eDest = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
@@ -578,7 +589,9 @@ const spawnEnemy = () => {
         .attr('data-bullet-type', eAmmo)
         // Set its spawn point
         .css('top', '-50px')
-        .css('left', xPos+'%');
+        .css('left', xPos+'%')
+        // Add the enemy skin into the div
+        .append($('<img>').attr('src',eSkin.attr('src')));
     if (hasBonus) {
       // This enemy will spawn a bonus when killed
       $enemy.attr('data-pu-spawn', 'random');
@@ -603,8 +616,8 @@ const getPowerUpSpawnInfo = () => {
   // Initialize some variables for function scope
   let xPos = null;
   let animation = null;
-  // Vertical start is always the same
-  let yPos = 40;
+  // Vertical start is around 40 (+/-30)
+  let yPos = 40 + (Math.floor(Math.random()*61)-30);
   // Randomly start from right or left
   if (flipCoin()) {
     // Start from the left
@@ -633,6 +646,8 @@ const spawnPowerUp = (index=null) => {
       // Center it at the spawn point
       .css('top', spawnInfo.y+'px')
       .css('left', spawnInfo.x+'px')
+      // Add the bonus skin into the div
+      .append($('<img>').attr('src', imgData['$'+powerUpInfo.skin+'Bonus'].attr('src')))
       // Have it remove itself from the DOM when the animation ends
       .on('oanimationend animationend webkitAnimationEnd', null, {array: $pCollidables}, cleanupIndependentSprite);
   // There is a 20% chance to spawn a speed-adjusted bonus
