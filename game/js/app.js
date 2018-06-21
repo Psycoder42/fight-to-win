@@ -884,7 +884,7 @@ const waveOver = () => {
     // All the waves have been completed
     displayText('CONGRATULATIONS',
       'You have defeated all of the enemies',
-      'The universe is safe... for now',
+      'The universe is safe... for now!',
       5000,
       gameOver
     );
@@ -896,7 +896,7 @@ const playerOutOfLives = () => {
   // All the waves have been completed
   displayText('Game Over',
     'You succumbed to the invading horde',
-    'Perhaps someday a warrior will appear who can pick up where you left off',
+    'Will you rise from the ashes to try again?',
     5000,
     gameOver
   );
