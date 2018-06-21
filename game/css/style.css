@@ -91,6 +91,11 @@ fieldset {
   margin-bottom: 0;
 }
 
+#player.shield {
+  border-top: 3px dotted lightblue;
+  border-radius: 40%;
+}
+
 #glass, #projectile-space, #pause, #stage-messages {
   position: absolute;
   top: 0;

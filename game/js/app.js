@@ -78,7 +78,9 @@ const sounds = {
       click: [100, 225],
       softBeep: [350, 110],
       explode: [500, 1800],
-      energyShot: [2400, 500]
+      energyShot: [2400, 500],
+      collect: [3000, 660],
+      powerDown: [3800, 700]
     }
   }),
   music: new Howl({
@@ -329,6 +331,8 @@ const checkForCollisions = () => {
         $eBullet.detach();
         $bToRemove.push($eBullet);
         if (stateData.playerHasShield) {
+          // Play a sound
+          playSoundInstance(sounds.effects, 'powerDown');
           // Shield protected the player
           divData.$player.removeClass('shield');
           stateData.playerHasShield = false;
@@ -425,7 +429,7 @@ const applyPowerUp = (index) => {
   if (info.modifierType == 'weapon') {
     // A new shot type will replace an old one
     trackPowerUp(stateData.powerShotName, false);
-    stateData.powerShotName = info.fireDelay;
+    stateData.firingDelay = info.fireDelay;
     stateData.powerShotName = info.name;
     stateData.powerShotClass = info.modifierClass;
     stateData.powerShotsRemaining = info.quantity;
@@ -466,6 +470,9 @@ const bulletImpact = ($target) => {
   } else {
     // The only other thing to hit is a powerup
     $target.detach();
+    // Play a sound
+    playSoundInstance(sounds.effects, 'collect');
+    /// Process power up
     applyPowerUp($target.attr('data-pu-idx'));
     cleanObjectFormArrayAndDOM($target, $pCollidables);
   }
