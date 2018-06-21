@@ -21,9 +21,9 @@ const enemyOps = {
 };
 // Array to store all the possible power ups
 const powerUps = [
-  {name: 'expand-shot', skin: 'expand', quantity: 10, fireDelay: 500, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
-  {name: 'speed-shot', skin: 'speed', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
-  {name: 'shields', skin: 'shield', modifierType: 'ship'},
+  {name: 'expand shot', skin: 'expand', quantity: 10, fireDelay: 500, modifierType: 'weapon', modifierClass: 'ani-pbullet-expand'},
+  {name: 'fast shot', skin: 'speed', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
+  {name: 'shield', skin: 'shield', modifierType: 'ship'},
   {name: 'invulnerable', skin: 'immune', modifierType: 'ship'},
   {name: 'shrunk', skin: 'shrunk', modifierType: 'ship'},
   {name: 'points', skin: 'points', modifierType: 'state'},
@@ -123,10 +123,7 @@ const resetState = () => {
   stateData.canFire = true;
   stateData.cutscene = false;
   stateData.gamePaused = false;
-  stateData.playerShrunk = false;
   stateData.pausableCutscene = true;
-  stateData.playerHasShield = false;
-  stateData.playerInvulnerable = false;
   // counter states
   stateData.currentWave = 0;
   stateData.playerKills = 0;
@@ -143,7 +140,7 @@ const resetState = () => {
   stateData.firingDelay = 500;
   stateData.currentWaveInfo = null;
   stateData.collisionDetectionTimer = null;
-  stateData.enemySpawnBonusChance = .25;
+  stateData.enemySpawnBonusChance = .20;
   // Clean up objects and UI
   resetObjectStates();
   resetUI();
@@ -323,24 +320,29 @@ const boundsOverlap = (sprite1, sprite2) => {
   return !(s1.top>s2.bottom||s1.bottom<s2.top||s1.left>s2.right||s1.right<s2.left);
 }
 
+// Remove the player's shield
+const removeShield = () => {
+  // Remove the visual
+  divData.$player.removeClass('shield');
+  // Remove the effect from the list
+  trackPowerUp('shield', false);
+}
+
 // Function to see if anything collided
 const checkForCollisions = () => {
   // Check if the enemy bullets hit the player unless the player is invulnerable
-  if (!stateData.playerInvulnerable) {
+  if (!divData.$player.hasClass('ani-invulnerable')) {
     let playerWasHit = false;
     let $bToRemove = [];
     for (let $eBullet of $eProjectiles) {
       if (boundsOverlap($eBullet, divData.$player)) {
         $eBullet.detach();
         $bToRemove.push($eBullet);
-        if (stateData.playerHasShield) {
+        if (divData.$player.hasClass('shield')) {
           // Play a sound
           playSoundInstance(sounds.effects, 'powerDown');
-          // Shield protected the player
-          divData.$player.removeClass('shield');
-          stateData.playerHasShield = false;
-          // Remove the effect from the list
-          trackPowerUp('shields', false);
+          // Shield protected the player so it is now depleated
+          removeShield();
           continue;
         } else {
           // Player was hit by an enemy bullet
@@ -442,8 +444,7 @@ const applyPowerUp = (index) => {
       case 'invulnerable':
         makePlayerInvulnerable();
         break;
-      case 'shields':
-        stateData.playerHasShield = true;
+      case 'shield':
         divData.$player.addClass('shield');
         break;
       case 'shrunk':
@@ -579,14 +580,11 @@ const spawnEnemy = () => {
     clearInterval(timeoutMap['enemySpawnInterval']);
     return;
   }
+  // Only spawn if the game is not paused
   if (!stateData.gamePaused) {
-    // Only spawn if the game is not paused
     let eType = enemyOps.type[Math.floor(Math.random()*enemyOps.type.length)];
     let eClass = 'enemy-' + eType;
     let eSkin = imgData['$'+eType+'Enemy'];
-    let eStyle = enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)];
-    let eMod = enemyOps.modifiers[Math.floor(Math.random()*enemyOps.modifiers.length)];
-    let eDest = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
     let eAmmo = enemyOps.bullets[Math.floor(Math.random()*enemyOps.bullets.length)];
     let xPos = (Math.floor(Math.random()*50)+20);
     let hasBonus = (Math.random() <= stateData.enemySpawnBonusChance);
@@ -608,14 +606,14 @@ const spawnEnemy = () => {
     }
     // Attach it to the DOM
     divData.$enemySpace.append($enemy);
-    // Make sure this honors the pause state
+    // Make sure this honor the pause state
     if (stateData.gamePaused) $enemy.addClass('paused');
     // Make sure the enemy is tracked for collision
     $pCollidables.push($enemy);
     // Queue up the enemy firing to start between 1-2 seconds after spawning
     timeoutMap[enemyId] = setTimeout(fireEnemyWeapon, (Math.floor(Math.random()*1000)+1000), $enemy);
     // Start the enemy moving
-    moveEnemy($enemy);
+    moveEnemy($enemy, true);
     // Record that an enemy was spawned
     stateData.enemiesSpawned++;
   }
@@ -694,6 +692,17 @@ const getProjectileSpawnPoint = (originator, isPlayer) => {
   return { x: xPos, y: yPos };
 }
 
+// Reset the player's bullets (remove the indicators of a bonus bullet)
+const clearPowerShot = () => {
+  // Reset the powerShot states
+  stateData.powerShotClass = null;
+  stateData.powerShotsRemaining = 0;
+  // Reset to the default firing delay
+  stateData.firingDelay = 500;
+  // Remove the bonus from the list
+  trackPowerUp(stateData.powerShotName, false);
+}
+
 // The player weapon was fired
 const firePlayerWeapon = (spawnPoint) => {
   // Spawn a new player projectile
@@ -715,10 +724,8 @@ const firePlayerWeapon = (spawnPoint) => {
     bulletAni = stateData.powerShotClass;
     stateData.powerShotsRemaining--;
     if (stateData.powerShotsRemaining == 0) {
-      // Ran out of power shots so remove the bonus from the list
-      trackPowerUp(stateData.powerShotName, false);
-      // Reset to the default firing delay
-      stateData.firingDelay = 500;
+      // Ran out of power shots so remove the bonus
+      clearPowerShot();
     }
   }
   $projectile.addClass(bulletAni);
@@ -773,7 +780,7 @@ const fireWeapon = () => {
 }
 
 // Move an enemy to its next location
-const moveEnemy = ($enemy) => {
+const moveEnemy = ($enemy, newSpawn=false) => {
   // Get the current location of the enemy
   let currentLoc = $enemy.css('animation-name');
   // Pick its next location
@@ -781,8 +788,13 @@ const moveEnemy = ($enemy) => {
   while (nextLoc == currentLoc) {
     nextLoc = enemyOps.endpoints[Math.floor(Math.random()*enemyOps.endpoints.length)];
   }
+  let movementStyle = enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)];
+  if (newSpawn) {
+    // Make sure they enter play quickly
+    movementStyle = '.ani-enemy-fast';
+  }
   // Add the movement style
-  $enemy.addClass(enemyOps.style[Math.floor(Math.random()*enemyOps.style.length)])
+  $enemy.addClass(movementStyle)
       // When the animation complete clean state and repeat
       .on('oanimationend animationend webkitAnimationEnd', moveEnemyCallback);
   // Randomly modify movement
@@ -828,10 +840,9 @@ const playerEnter = (callback=null) => {
 // Make the player invulnerable
 const makePlayerInvulnerable = () => {
   // Only if the player is not already invulnerable
-  if (!stateData.playerInvulnerable) {
+  if (!divData.$player.hasClass('ani-invulnerable')) {
+    // When the animation ends, remove the powerup
     divData.$player.on('oanimationend animationend webkitAnimationEnd', makePlayerInvulnerableCallback);
-    // Update the state
-    stateData.playerInvulnerable = true;
     // Start the invulnerable animation
     divData.$player.addClass('ani-invulnerable');
   }
@@ -840,19 +851,32 @@ const makePlayerInvulnerable = () => {
 // Shrink the player
 const shrinkPlayer = () => {
   // The effect doesn't stack
-  if (!stateData.playerShrunk) {
+  if (!divData.$player.hasClass('ani-shrink')) {
+    // When the animation ends, remove the powerup
     divData.$player.on('oanimationend animationend webkitAnimationEnd', shrinkPlayerCallback);
-    // Update the state
-    stateData.playerShrunk = true;
     // Start the invulnerable animation
     divData.$player.addClass('ani-shrink');
   }
+}
+
+// Make sure the player doesn't have any bonuses left
+const removeAllBonuses = () => {
+  // Remove the shield
+  removeShield();
+  // Remove power shots
+  clearPowerShot();
+  // Reuse the callbacks to cleanup invulerable and shrink
+  let fakeEvent = { currentTarget: divData.$player };
+  makePlayerInvulnerableCallback(fakeEvent);
+  shrinkPlayerCallback(fakeEvent);
 }
 
 // Bring in the next ship after a player death
 const spawnNextLife = () => {
   // Take away one of their extra lives
   updateExtraLives(-1);
+  // Strip away any lingering bonuses
+  removeAllBonuses();
   // Add the short animation class to reduce invulnerability time
   divData.$player.addClass('short-animation');
   // Bring the next ship in and make them temporarily invulnerable

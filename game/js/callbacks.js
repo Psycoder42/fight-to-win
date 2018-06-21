@@ -46,8 +46,6 @@ const makePlayerInvulnerableCallback = (event) => {
   divData.$player.removeClass('ani-invulnerable');
   // Remove the animation modifier class if present
   divData.$player.removeClass('short-animation');
-  // Update the state
-  stateData.playerInvulnerable = false;
   // Remove the effect from the list
   trackPowerUp('invulnerable', false);
 }
@@ -58,8 +56,6 @@ const shrinkPlayerCallback = (event) => {
   $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd', shrinkPlayerCallback);
   // Remove the animation class
   divData.$player.removeClass('ani-shrink');
-  // Update the state
-  stateData.playerShrunk = false;
   // Remove the effect from the list
   trackPowerUp('shrunk', false);
 }
