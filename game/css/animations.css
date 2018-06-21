@@ -23,7 +23,7 @@
 .ani-invulnerable {
   animation-name: invulnerable;
   animation-timing-function: linear;
-  animation-duration: 2s;
+  animation-duration: 8s;
 }
 
 @keyframes invulnerable {
@@ -34,6 +34,20 @@
   66% { opacity: 1; }
   83% { opacity: .2; }
   100% { opacity: 1; }
+}
+
+.ani-shrink {
+  transform-origin: top;
+  animation-name: shrink;
+  animation-timing-function: linear;
+  animation-duration: 8s;
+}
+
+@keyframes shrink {
+  0% { transform: scale(1); }
+  10% { transform: scale(0.5); }
+  90% { transform: scale(0.5); }
+  100% { transform: scale(1); }
 }
 
 .ani-pbullet-normal {
@@ -70,6 +84,10 @@
 
 @keyframes player-bullet-expand {
   100% { transform: translateY(-1000px) scale(4); }
+}
+
+.short-animation {
+  animation-duration: 2s;
 }
 
 /******************************************

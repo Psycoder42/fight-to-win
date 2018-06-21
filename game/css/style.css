@@ -265,7 +265,8 @@ fieldset {
 
 .sprite-field div {
   position: absolute;
-  display: inline-block;
+  display: inline-flex;
+  justify-content: center;
 }
 
 .enemy-bullet {
@@ -286,4 +287,5 @@ fieldset {
 
 .explosion {
   position: absolute;
+  align-self: center;
 }

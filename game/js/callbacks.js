@@ -44,10 +44,24 @@ const makePlayerInvulnerableCallback = (event) => {
   $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd', makePlayerInvulnerableCallback);
   // Remove the animation class
   divData.$player.removeClass('ani-invulnerable');
+  // Remove the animation modifier class if present
+  divData.$player.removeClass('short-animation');
   // Update the state
   stateData.playerInvulnerable = false;
   // Remove the effect from the list
   trackPowerUp('invulnerable', false);
+}
+
+// Callback after the player has been shrunk
+const shrinkPlayerCallback = (event) => {
+  // Remove the one-time listener
+  $(event.currentTarget).off('oanimationend animationend webkitAnimationEnd', shrinkPlayerCallback);
+  // Remove the animation class
+  divData.$player.removeClass('ani-shrink');
+  // Update the state
+  stateData.playerShrunk = false;
+  // Remove the effect from the list
+  trackPowerUp('shrunk', false);
 }
 
 // Cleanup an independent sprite after it has completed it's animation

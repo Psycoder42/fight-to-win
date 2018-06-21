@@ -25,6 +25,7 @@ const powerUps = [
   {name: 'speed-shot', skin: 'speed', quantity: 10, fireDelay: 200, modifierType: 'weapon', modifierClass: 'ani-pbullet-speed'},
   {name: 'shields', skin: 'shield', modifierType: 'ship'},
   {name: 'invulnerable', skin: 'immune', modifierType: 'ship'},
+  {name: 'shrunk', skin: 'shrunk', modifierType: 'ship'},
   {name: 'points', skin: 'points', modifierType: 'state'},
   {name: 'life', skin: 'life', modifierType: 'state'}
 ];
@@ -65,6 +66,7 @@ const loadImages = () => {
   imgData.$immuneBonus = $('<img>').attr('src', 'images/pu-immune.png');
   imgData.$expandBonus = $('<img>').attr('src', 'images/pu-expand.png');
   imgData.$speedBonus = $('<img>').attr('src', 'images/pu-speed.png');
+  imgData.$shrunkBonus = $('<img>').attr('src', 'images/pu-shrink.png');
 }
 // We want to run this immediately and not wait for the page to load
 loadImages();
@@ -121,6 +123,7 @@ const resetState = () => {
   stateData.canFire = true;
   stateData.cutscene = false;
   stateData.gamePaused = false;
+  stateData.playerShrunk = false;
   stateData.pausableCutscene = true;
   stateData.playerHasShield = false;
   stateData.playerInvulnerable = false;
@@ -443,6 +446,9 @@ const applyPowerUp = (index) => {
         stateData.playerHasShield = true;
         divData.$player.addClass('shield');
         break;
+      case 'shrunk':
+        shrinkPlayer();
+        break;
     }
     trackPowerUp(info.name, true);
   } else if (info.modifierType == 'state') {
@@ -515,11 +521,8 @@ const benefitFromDeadEnemy = ($enemy) => {
 // will be invoked and the sprite that exploded will be passed as an argument
 const makeExplode = ($sprite, callback=null, animationNumber=1) => {
   // Spawn the explosion on the center of the sprite
-  let spriteRect = rect($sprite);
   let $explosion = $('<img>').addClass('explosion')
       .attr('src', imgData.$explosion.attr('src'))
-      .css('top', (spriteRect.halfHeight-40)+'px')
-      .css('left', (spriteRect.halfWidth-40)+'px')
       // Add an id so that it is easier to identify
       .attr('data-id', getUniqueId('a-'))
       // Have it remove itself from the DOM when the animation ends
@@ -834,10 +837,24 @@ const makePlayerInvulnerable = () => {
   }
 }
 
+// Shrink the player
+const shrinkPlayer = () => {
+  // The effect doesn't stack
+  if (!stateData.playerShrunk) {
+    divData.$player.on('oanimationend animationend webkitAnimationEnd', shrinkPlayerCallback);
+    // Update the state
+    stateData.playerShrunk = true;
+    // Start the invulnerable animation
+    divData.$player.addClass('ani-shrink');
+  }
+}
+
 // Bring in the next ship after a player death
 const spawnNextLife = () => {
   // Take away one of their extra lives
   updateExtraLives(-1);
+  // Add the short animation class to reduce invulnerability time
+  divData.$player.addClass('short-animation');
   // Bring the next ship in and make them temporarily invulnerable
   playerEnter(makePlayerInvulnerable);
 }
