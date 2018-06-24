@@ -287,6 +287,8 @@ const resetUI = () => {
   // Reset the kills and score
   updateKillCount(0);
   updatePlayerScore(0);
+  // Make sure all of the bonuses are removed
+  removeAllBonuses();
   // Reset the effects list
   updateEffectsList();
   // Reset the extra lives

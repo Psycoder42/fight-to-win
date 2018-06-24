@@ -146,10 +146,12 @@ fieldset {
 }
 
 #settings {
+  max-width: 500px;
   z-index: 4;
 }
 
 #instructions {
+  max-width: 500px;
   z-index: 5;
 }
 
